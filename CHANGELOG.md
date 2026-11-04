@@ -6,6 +6,7 @@
 - **New setting: Tab adds a child, Enter a sibling.** Swaps the two keys while typing, for people used to other mind map apps. Off by default, so nothing changes for existing users.
 - **New setting: Keyboard shortcuts on mobile.** With a hardware keyboard on a phone or tablet, Enter adds nodes while typing, as on desktop. Off by default.
 - Cmd+F opens canvas search on iPad / iPhone with a hardware keyboard (it expected Ctrl+F there).
+- **Nodes are no longer shrunk while the canvas is hidden.** Measuring text in a hidden canvas (background tab, switching workspaces or desktops) read every width as 0, so fitted nodes collapsed to 80x60. Measuring now waits until the canvas is visible.
 - **Renaming a pasted attachment only rewrites whole links.** Renaming `1.png` no longer touches `image-1.png` in text nodes.
 - Typing in ordinary notes no longer scans canvas nodes when no canvas is open.
 - Disabling the plugin removes its toolbar buttons from popout windows too.

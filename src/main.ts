@@ -638,8 +638,12 @@ export default class CanvasQuickMindmap extends Plugin {
 	measure(canvas: Canvas, text: string): { width: number; height: number } | null {
 		const plain = plainText(text);
 		if (plain === null) return null;
+		// A hidden canvas (background tab, another workspace, a window being restored) has no layout:
+		// every width reads 0 and the node would be shrunk to the 80x60 minimum. Measure nothing then.
+		if (!canvas.canvasEl.isShown()) return null;
 		const host = canvas.canvasEl.createDiv({ cls: "canvas-node cqm-measure" });
 		try {
+			if (!host.offsetWidth && !host.offsetHeight) return null;
 			const container = host.createDiv({ cls: "canvas-node-container" });
 			const preview = container
 				.createDiv({ cls: "canvas-node-content markdown-embed" })
