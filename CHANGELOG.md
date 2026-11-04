@@ -4,6 +4,8 @@
 
 - **Shift+Tab selects the parent node**, while typing or with a node selected, ready for Tab / Enter. Also available as the "Select parent node" command.
 - **New setting: Tab adds a child, Enter a sibling.** Swaps the two keys while typing, for people used to other mind map apps. Off by default, so nothing changes for existing users.
+- **New setting: Keyboard shortcuts on mobile.** With a hardware keyboard on a phone or tablet, Enter adds nodes while typing, as on desktop. Off by default.
+- Cmd+F opens canvas search on iPad / iPhone with a hardware keyboard (it expected Ctrl+F there).
 - **Renaming a pasted attachment only rewrites whole links.** Renaming `1.png` no longer touches `image-1.png` in text nodes.
 - Typing in ordinary notes no longer scans canvas nodes when no canvas is open.
 - Disabling the plugin removes its toolbar buttons from popout windows too.

@@ -70,6 +70,9 @@ choosing characters.
   manual positions and place new nodes in the nearest free spot).
 - **Enter adds a node while typing** — off keeps Enter as a line break.
 - **Tab adds a child, Enter a sibling** — swap the two keys while typing.
+- **Keyboard shortcuts on mobile** — on a phone or tablet with a hardware
+  keyboard, Enter adds nodes while typing as on desktop (off by default, so the
+  on-screen keyboard's Enter stays a line break).
 - **Horizontal / vertical gap** — spacing of the tree. Below 160 px horizontal,
   Obsidian's curved edges start to loop back.
 - **Fit nodes to their text** and **maximum node width**.

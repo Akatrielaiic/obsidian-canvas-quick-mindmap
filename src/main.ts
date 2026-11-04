@@ -84,6 +84,7 @@ interface Settings {
 	autoLayout: boolean;
 	enterInEdit: boolean;
 	tabAddsChild: boolean;
+	mobileKeys: boolean;
 	hGap: number;
 	vGap: number;
 	renamePasted: boolean;
@@ -95,6 +96,7 @@ const DEFAULT_SETTINGS: Settings = {
 	autoLayout: true,
 	enterInEdit: true,
 	tabAddsChild: false,
+	mobileKeys: false,
 	hGap: 160,
 	vGap: 20,
 	renamePasted: true,
@@ -121,7 +123,9 @@ const STRINGS = {
 		autoLayout: "Auto layout",
 		autoLayoutDesc: "After adding a node, rearrange the whole branch tree so nodes never overlap. Turn off to keep your manual positions; new nodes are then placed in the nearest free spot.",
 		enterInEdit: "Enter adds a node while typing",
-		enterInEditDesc: "While editing a node, Enter adds a node (child or sibling, see the next setting) and Shift+Enter inserts a line break. Turn off to keep Enter as a line break. Always off on mobile.",
+		enterInEditDesc: "While editing a node, Enter adds a node (child or sibling, see the next setting) and Shift+Enter inserts a line break. Turn off to keep Enter as a line break. On phones and tablets this needs \"Keyboard shortcuts on mobile\".",
+		mobileKeys: "Keyboard shortcuts on mobile",
+		mobileKeysDesc: "For phones and tablets with a hardware keyboard: Enter while typing adds a node, as on desktop. Leave off with the on-screen keyboard, where Enter should stay a line break.",
 		tabAddsChild: "Tab adds a child, Enter a sibling",
 		tabAddsChildDesc: "While typing in a node, Tab goes one level deeper and Enter adds the next node on the same level, as in most mind map apps. Off: Enter adds a child and Tab a sibling.",
 		hGap: "Horizontal gap",
@@ -158,7 +162,9 @@ const STRINGS = {
 		autoLayout: "自动排版",
 		autoLayoutDesc: "添加节点后，把整棵树重新排一遍，节点不会重叠。关掉则保留你手动摆的位置，新节点放在最近的空位。",
 		enterInEdit: "输入时 Enter 新建节点",
-		enterInEditDesc: "编辑节点时，Enter 新建节点（子节点或同级节点，见下一项），Shift+Enter 换行。关掉则 Enter 照常换行。手机上始终关闭。",
+		enterInEditDesc: "编辑节点时，Enter 新建节点（子节点或同级节点，见下一项），Shift+Enter 换行。关掉则 Enter 照常换行。手机和平板上需要同时打开「移动端键盘快捷键」。",
+		mobileKeys: "移动端键盘快捷键",
+		mobileKeysDesc: "手机或平板接了实体键盘时：输入时 Enter 新建节点，和电脑上一样。只用屏幕键盘时请关闭，让 Enter 保持换行。",
 		tabAddsChild: "Tab 新建子节点，Enter 新建同级节点",
 		tabAddsChildDesc: "输入时 Tab 往下一层，Enter 在同一层新建节点，和大多数思维导图软件一样。关掉则 Enter 新建子节点、Tab 新建同级节点。",
 		hGap: "水平间距",
@@ -548,7 +554,7 @@ export default class CanvasQuickMindmap extends Plugin {
 		// "Tab adds a child" swaps the two, as in most mind map apps.
 		const swap = this.settings.tabAddsChild;
 		if (evt.key === "Tab") action = swap ? "child" : "sibling";
-		else if (evt.key === "Enter" && this.settings.enterInEdit && !Platform.isMobile) action = swap ? "sibling" : "child";
+		else if (evt.key === "Enter" && this.settings.enterInEdit && (!Platform.isMobile || this.settings.mobileKeys)) action = swap ? "sibling" : "child";
 		if (!action) return false;
 
 		const node = this.nodeForEditor(view);
@@ -864,7 +870,7 @@ export default class CanvasQuickMindmap extends Plugin {
 			const group = createDiv({ cls: "canvas-control-group mod-raised cqm-tidy" });
 			const searchItem = group.createDiv({ cls: "canvas-control-item" });
 			setIcon(searchItem, "search");
-			setTooltip(searchItem, `${t().searchTip} (${Platform.isMacOS ? "⌘" : "Ctrl+"}F)`, { placement: "left" });
+			setTooltip(searchItem, `${t().searchTip} (${usesCmd() ? "⌘" : "Ctrl+"}F)`, { placement: "left" });
 			searchItem.addEventListener("click", () => this.openSearch(view));
 			const item = group.createDiv({ cls: "canvas-control-item" });
 			setIcon(item, "list-tree");
@@ -1085,12 +1091,17 @@ export default class CanvasQuickMindmap extends Plugin {
 	}
 }
 
+/** Apple keyboards (Mac, and iPad / iPhone with a hardware keyboard) use Cmd where others use Ctrl. */
+function usesCmd(): boolean {
+	return Platform.isMacOS || Platform.isIosApp;
+}
+
 function isShiftTab(evt: KeyboardEvent): boolean {
 	return evt.key === "Tab" && evt.shiftKey && !evt.ctrlKey && !evt.metaKey && !evt.altKey;
 }
 
 function isFindKey(evt: KeyboardEvent): boolean {
-	const mod = Platform.isMacOS ? evt.metaKey && !evt.ctrlKey : evt.ctrlKey && !evt.metaKey;
+	const mod = usesCmd() ? evt.metaKey && !evt.ctrlKey : evt.ctrlKey && !evt.metaKey;
 	return mod && !evt.shiftKey && !evt.altKey && evt.key.toLowerCase() === "f";
 }
 
@@ -1258,7 +1269,7 @@ class CanvasSearch {
 	}
 }
 
-type ToggleKey = "autoLayout" | "enterInEdit" | "tabAddsChild" | "autoSize" | "renamePasted";
+type ToggleKey = "autoLayout" | "enterInEdit" | "tabAddsChild" | "mobileKeys" | "autoSize" | "renamePasted";
 type SliderKey = "hGap" | "vGap" | "maxWidth";
 type SettingSpec =
 	| { kind: "toggle"; key: ToggleKey; name: string; desc: string }
@@ -1270,6 +1281,7 @@ function settingSpecs(): SettingSpec[] {
 		{ kind: "toggle", key: "autoLayout", name: s.autoLayout, desc: s.autoLayoutDesc },
 		{ kind: "toggle", key: "enterInEdit", name: s.enterInEdit, desc: s.enterInEditDesc },
 		{ kind: "toggle", key: "tabAddsChild", name: s.tabAddsChild, desc: s.tabAddsChildDesc },
+		{ kind: "toggle", key: "mobileKeys", name: s.mobileKeys, desc: s.mobileKeysDesc },
 		{ kind: "slider", key: "hGap", name: s.hGap, desc: s.hGapDesc, min: 80, max: 400, step: 10 },
 		{ kind: "slider", key: "vGap", name: s.vGap, desc: s.vGapDesc, min: 0, max: 200, step: 10 },
 		{ kind: "toggle", key: "autoSize", name: s.autoSize, desc: s.autoSizeDesc },
