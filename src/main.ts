@@ -83,6 +83,7 @@ interface CanvasView extends ItemView {
 interface Settings {
 	autoLayout: boolean;
 	enterInEdit: boolean;
+	tabAddsChild: boolean;
 	hGap: number;
 	vGap: number;
 	renamePasted: boolean;
@@ -93,6 +94,7 @@ interface Settings {
 const DEFAULT_SETTINGS: Settings = {
 	autoLayout: true,
 	enterInEdit: true,
+	tabAddsChild: false,
 	hGap: 160,
 	vGap: 20,
 	renamePasted: true,
@@ -118,8 +120,10 @@ const STRINGS = {
 		siblingTip: "Add sibling",
 		autoLayout: "Auto layout",
 		autoLayoutDesc: "After adding a node, rearrange the whole branch tree so nodes never overlap. Turn off to keep your manual positions; new nodes are then placed in the nearest free spot.",
-		enterInEdit: "Enter adds a child while typing",
-		enterInEditDesc: "While editing a node, Enter adds a child and Shift+Enter inserts a line break (Tab adds a sibling). Turn off to keep Enter as a line break. Always off on mobile.",
+		enterInEdit: "Enter adds a node while typing",
+		enterInEditDesc: "While editing a node, Enter adds a node (child or sibling, see the next setting) and Shift+Enter inserts a line break. Turn off to keep Enter as a line break. Always off on mobile.",
+		tabAddsChild: "Tab adds a child, Enter a sibling",
+		tabAddsChildDesc: "While typing in a node, Tab goes one level deeper and Enter adds the next node on the same level, as in most mind map apps. Off: Enter adds a child and Tab a sibling.",
 		hGap: "Horizontal gap",
 		hGapDesc: "Distance between a node and its children, in pixels. Below 160, Obsidian's curved edges start to loop back and cross each other.",
 		vGap: "Vertical gap",
@@ -153,8 +157,10 @@ const STRINGS = {
 		siblingTip: "添加同级节点",
 		autoLayout: "自动排版",
 		autoLayoutDesc: "添加节点后，把整棵树重新排一遍，节点不会重叠。关掉则保留你手动摆的位置，新节点放在最近的空位。",
-		enterInEdit: "输入时 Enter 新建子节点",
-		enterInEditDesc: "编辑节点时，Enter 新建子节点，Shift+Enter 换行（Tab 新建同级节点）。关掉则 Enter 照常换行。手机上始终关闭。",
+		enterInEdit: "输入时 Enter 新建节点",
+		enterInEditDesc: "编辑节点时，Enter 新建节点（子节点或同级节点，见下一项），Shift+Enter 换行。关掉则 Enter 照常换行。手机上始终关闭。",
+		tabAddsChild: "Tab 新建子节点，Enter 新建同级节点",
+		tabAddsChildDesc: "输入时 Tab 往下一层，Enter 在同一层新建节点，和大多数思维导图软件一样。关掉则 Enter 新建子节点、Tab 新建同级节点。",
 		hGap: "水平间距",
 		hGapDesc: "节点和子节点之间的距离（像素）。小于 160 时，Obsidian 的弯曲连线会往回绕，看起来互相交叉。",
 		vGap: "垂直间距",
@@ -538,9 +544,11 @@ export default class CanvasQuickMindmap extends Plugin {
 		}
 		if (evt.ctrlKey || evt.metaKey || evt.altKey || evt.shiftKey) return false;
 		let action: Action | null = null;
-		// While typing: Enter goes one level deeper, Tab adds the next node on the same level.
-		if (evt.key === "Tab") action = "sibling";
-		else if (evt.key === "Enter" && this.settings.enterInEdit && !Platform.isMobile) action = "child";
+		// While typing, by default: Enter goes one level deeper, Tab adds the next node on the same level.
+		// "Tab adds a child" swaps the two, as in most mind map apps.
+		const swap = this.settings.tabAddsChild;
+		if (evt.key === "Tab") action = swap ? "child" : "sibling";
+		else if (evt.key === "Enter" && this.settings.enterInEdit && !Platform.isMobile) action = swap ? "sibling" : "child";
 		if (!action) return false;
 
 		const node = this.nodeForEditor(view);
@@ -1250,7 +1258,7 @@ class CanvasSearch {
 	}
 }
 
-type ToggleKey = "autoLayout" | "enterInEdit" | "autoSize" | "renamePasted";
+type ToggleKey = "autoLayout" | "enterInEdit" | "tabAddsChild" | "autoSize" | "renamePasted";
 type SliderKey = "hGap" | "vGap" | "maxWidth";
 type SettingSpec =
 	| { kind: "toggle"; key: ToggleKey; name: string; desc: string }
@@ -1261,6 +1269,7 @@ function settingSpecs(): SettingSpec[] {
 	return [
 		{ kind: "toggle", key: "autoLayout", name: s.autoLayout, desc: s.autoLayoutDesc },
 		{ kind: "toggle", key: "enterInEdit", name: s.enterInEdit, desc: s.enterInEditDesc },
+		{ kind: "toggle", key: "tabAddsChild", name: s.tabAddsChild, desc: s.tabAddsChildDesc },
 		{ kind: "slider", key: "hGap", name: s.hGap, desc: s.hGapDesc, min: 80, max: 400, step: 10 },
 		{ kind: "slider", key: "vGap", name: s.vGap, desc: s.vGapDesc, min: 0, max: 200, step: 10 },
 		{ kind: "toggle", key: "autoSize", name: s.autoSize, desc: s.autoSizeDesc },

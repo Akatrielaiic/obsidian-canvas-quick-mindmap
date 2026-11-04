@@ -46,8 +46,13 @@ nothing new to learn, nothing locked in.
 |---|---|---|
 | Enter | New child node | Edit the node |
 | Tab | New sibling node | New child node |
+| Shift+Tab | Select the parent node | Select the parent node |
 | Shift+Enter | Line break | — |
 | Cmd/Ctrl+F | Search the canvas | Search the canvas |
+
+With **Tab adds a child, Enter a sibling** turned on, Enter and Tab swap
+roles while typing (Tab: new child, Enter: new sibling), as in most mind map
+apps.
 
 Enter is never taken while an input method (Chinese, Japanese…) is still
 choosing characters.
@@ -63,7 +68,8 @@ choosing characters.
 
 - **Auto layout** — rearrange the tree after each new node (off: keep your
   manual positions and place new nodes in the nearest free spot).
-- **Enter adds a child while typing** — off keeps Enter as a line break.
+- **Enter adds a node while typing** — off keeps Enter as a line break.
+- **Tab adds a child, Enter a sibling** — swap the two keys while typing.
 - **Horizontal / vertical gap** — spacing of the tree. Below 160 px horizontal,
   Obsidian's curved edges start to loop back.
 - **Fit nodes to their text** and **maximum node width**.
