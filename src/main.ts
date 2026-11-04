@@ -643,8 +643,10 @@ export default class CanvasQuickMindmap extends Plugin {
 		if (!canvas.canvasEl.isShown()) return null;
 		const host = canvas.canvasEl.createDiv({ cls: "canvas-node cqm-measure" });
 		try {
-			if (!host.offsetWidth && !host.offsetHeight) return null;
 			const container = host.createDiv({ cls: "canvas-node-container" });
+			// The container is absolutely positioned (so the host itself is always 0x0) and 4000px wide
+			// by our CSS: zero here means there is no layout at all.
+			if (!container.offsetWidth) return null;
 			const preview = container
 				.createDiv({ cls: "canvas-node-content markdown-embed" })
 				.createDiv({ cls: "markdown-embed-content" })
