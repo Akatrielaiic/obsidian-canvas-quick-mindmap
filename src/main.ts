@@ -641,6 +641,8 @@ export default class CanvasQuickMindmap extends Plugin {
 		// A hidden canvas (background tab, another workspace, a window being restored) has no layout:
 		// every width reads 0 and the node would be shrunk to the 80x60 minimum. Measure nothing then.
 		if (!canvas.canvasEl.isShown()) return null;
+		const live = this.liveParagraph(canvas);
+		if (live) return this.measureBeside(live, plain);
 		const host = canvas.canvasEl.createDiv({ cls: "canvas-node cqm-measure" });
 		try {
 			const container = host.createDiv({ cls: "canvas-node-container" });
@@ -660,8 +662,11 @@ export default class CanvasQuickMindmap extends Plugin {
 
 			p.addClass("cqm-measure-natural");
 			const natural = p.offsetWidth + 2; // a little slack so the line never wraps from rounding
-			const contentWidth = Math.min(natural, Math.max(40, this.settings.maxWidth - padX - border));
 			p.removeClass("cqm-measure-natural");
+			p.addClass("cqm-measure-word");
+			const word = p.offsetWidth + 2;
+			p.removeClass("cqm-measure-word");
+			const contentWidth = this.contentWidth(natural, word, padX + border);
 			p.addClass("cqm-measure-wrap");
 			p.setCssStyles({ width: `${contentWidth}px` });
 			const height = p.offsetHeight;
@@ -673,6 +678,50 @@ export default class CanvasQuickMindmap extends Plugin {
 			};
 		} finally {
 			host.remove();
+		}
+	}
+
+	/** Words are never split: below the longest word the node grows instead, even past the max width. */
+	private contentWidth(natural: number, word: number, chromeX: number): number {
+		return Math.max(word, Math.min(natural, Math.max(40, this.settings.maxWidth - chromeX)));
+	}
+
+	/**
+	 * A paragraph of a text node that is on screen, not being edited and not scrolling. Measuring next to
+	 * it gives exactly the font and paddings real nodes use, whatever the theme or Obsidian version.
+	 */
+	private liveParagraph(canvas: Canvas): { node: CanvasNode; p: HTMLElement } | null {
+		for (const node of canvas.nodes.values()) {
+			if (node.isEditing || node.getData().type !== "text") continue;
+			const p = node.nodeEl.querySelector<HTMLElement>(".markdown-preview-sizer > .el-p > p");
+			const view = p?.closest<HTMLElement>(".markdown-preview-view");
+			if (!p || !view || !p.offsetWidth || !node.nodeEl.offsetWidth) continue;
+			if (view.scrollHeight > view.clientHeight + 1) continue; // a scrollbar would count as padding
+			return { node, p };
+		}
+		return null;
+	}
+
+	/** measure() using a hidden paragraph placed beside a real one, so it inherits the real styles. */
+	private measureBeside(live: { node: CanvasNode; p: HTMLElement }, plain: string): { width: number; height: number } {
+		// Everything around the text: node border, content and preview paddings, as rendered right now.
+		const chromeX = live.node.nodeEl.offsetWidth - live.p.offsetWidth;
+		const probe = live.p.parentElement!.createEl("p", { text: plain || " " });
+		probe.setCssStyles({ position: "absolute", left: "0", top: "0", margin: "0", visibility: "hidden", pointerEvents: "none" });
+		try {
+			probe.setCssStyles({ whiteSpace: "pre", width: "max-content" });
+			const natural = probe.offsetWidth + 2; // a little slack so the line never wraps from rounding
+			probe.setCssStyles({ whiteSpace: "pre-wrap", overflowWrap: "normal", wordBreak: "normal", width: "min-content" });
+			const word = probe.offsetWidth + 2;
+			const contentWidth = this.contentWidth(natural, word, chromeX);
+			probe.setCssStyles({ overflowWrap: "break-word", width: `${contentWidth}px` });
+			const height = probe.offsetHeight;
+			return {
+				width: Math.max(plain ? 80 : 120, Math.ceil(contentWidth + chromeX)),
+				height: Math.max(60, Math.ceil(height + 32)), // a one-line node is the native 60px tall
+			};
+		} finally {
+			probe.remove();
 		}
 	}
 

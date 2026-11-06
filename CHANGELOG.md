@@ -7,6 +7,7 @@
 - **New setting: Keyboard shortcuts on mobile.** With a hardware keyboard on a phone or tablet, Enter adds nodes while typing, as on desktop. Off by default.
 - Cmd+F opens canvas search on iPad / iPhone with a hardware keyboard (it expected Ctrl+F there).
 - **Nodes are no longer shrunk while the canvas is hidden.** Measuring text in a hidden canvas (background tab, switching workspaces or desktops) read every width as 0, so fitted nodes collapsed to 80x60. Measuring now waits until the canvas is visible.
+- **Auto-size never splits a word.** A node is at least as wide as its longest word ("Macro" no longer shows as "Mac / ro"), growing past the max width if a single word needs it. Text is now measured beside a paragraph of a real node on screen, so custom themes and fonts no longer make nodes a few pixels too narrow.
 - **Renaming a pasted attachment only rewrites whole links.** Renaming `1.png` no longer touches `image-1.png` in text nodes.
 - Typing in ordinary notes no longer scans canvas nodes when no canvas is open.
 - Disabling the plugin removes its toolbar buttons from popout windows too.
