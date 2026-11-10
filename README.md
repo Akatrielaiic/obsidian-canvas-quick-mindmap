@@ -70,6 +70,13 @@ choosing characters.
   manual positions and place new nodes in the nearest free spot).
 - **Enter adds a node while typing** — off keeps Enter as a line break.
 - **Tab adds a child, Enter a sibling** — swap the two keys while typing.
+- **Extra arrows are links** — a node with several incoming arrows keeps one
+  as its branch (right-to-left first, then the one from a node on its left,
+  then the oldest). The others, and arrows pointing back to the left, are links:
+  layout and tidy don't move nodes for them or change their sides, and two maps
+  joined by a link stay two maps. Off: every arrow is a branch, as before.
+- **Route links around nodes** — after layout and tidy, links are reattached to
+  the sides that keep them short and off other nodes.
 - **Keyboard shortcuts on mobile** — on a phone or tablet with a hardware
   keyboard, Enter adds nodes while typing as on desktop (off by default, so the
   on-screen keyboard's Enter stays a line break).

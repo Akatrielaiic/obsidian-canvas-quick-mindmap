@@ -8,6 +8,9 @@
 - Cmd+F opens canvas search on iPad / iPhone with a hardware keyboard (it expected Ctrl+F there).
 - **Nodes are no longer shrunk while the canvas is hidden.** Measuring text in a hidden canvas (background tab, switching workspaces or desktops) read every width as 0, so fitted nodes collapsed to 80x60. Measuring now waits until the canvas is visible.
 - **Auto-size never splits a word.** A node is at least as wide as its longest word ("Macro" no longer shows as "Mac / ro"), growing past the max width if a single word needs it. Text is now measured beside a paragraph of a real node on screen, so custom themes and fonts no longer make nodes a few pixels too narrow.
+- **Hand-drawn extra arrows no longer reshape the map.** New setting *Extra arrows are links* (on by default): each node has one branch arrow (right-to-left first, then from a node on its left, then the oldest); other arrows, arrows pointing back to the left and arrows that would close a loop are links. Layout and tidy ignore links: nodes are not moved under a second parent, two maps joined by an arrow stay separate, and Enter no longer adds a sibling under the wrong parent.
+- **New setting: Route links around nodes** (on by default). After layout and tidy, each link is reattached to the pair of sides whose curve crosses the fewest other nodes, then is shortest. Right-to-left is kept for branches, so a link never turns into one.
+- New child nodes start to the right of their parent instead of on top of it.
 - **Renaming a pasted attachment only rewrites whole links.** Renaming `1.png` no longer touches `image-1.png` in text nodes.
 - Typing in ordinary notes no longer scans canvas nodes when no canvas is open.
 - Disabling the plugin removes its toolbar buttons from popout windows too.

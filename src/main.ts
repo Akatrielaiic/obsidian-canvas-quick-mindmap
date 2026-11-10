@@ -32,6 +32,7 @@ interface CanvasNode {
 }
 
 interface CanvasEdge {
+	id: string;
 	from: { node: CanvasNode; side: string };
 	to: { node: CanvasNode; side: string };
 	getData(): { id: string; fromSide?: string; toSide?: string };
@@ -45,6 +46,7 @@ interface CanvasMenu {
 
 interface Canvas {
 	nodes: Map<string, CanvasNode>;
+	edges: Map<string, CanvasEdge>;
 	selection: Set<CanvasNode>;
 	readonly: boolean;
 	isDragging: boolean;
@@ -85,6 +87,8 @@ interface Settings {
 	enterInEdit: boolean;
 	tabAddsChild: boolean;
 	mobileKeys: boolean;
+	linkArrows: boolean;
+	routeLinks: boolean;
 	hGap: number;
 	vGap: number;
 	renamePasted: boolean;
@@ -97,6 +101,8 @@ const DEFAULT_SETTINGS: Settings = {
 	enterInEdit: true,
 	tabAddsChild: false,
 	mobileKeys: false,
+	linkArrows: true,
+	routeLinks: true,
 	hGap: 160,
 	vGap: 20,
 	renamePasted: true,
@@ -128,6 +134,10 @@ const STRINGS = {
 		mobileKeysDesc: "For phones and tablets with a hardware keyboard: Enter while typing adds a node, as on desktop. Leave off with the on-screen keyboard, where Enter should stay a line break.",
 		tabAddsChild: "Tab adds a child, Enter a sibling",
 		tabAddsChildDesc: "While typing in a node, Tab goes one level deeper and Enter adds the next node on the same level, as in most mind map apps. Off: Enter adds a child and Tab a sibling.",
+		linkArrows: "Extra arrows are links",
+		linkArrowsDesc: "A node with several incoming arrows keeps one as its branch (the right-to-left one, else the one from a node on its left, else the oldest); the others, and arrows pointing back to the left, are links: layout and tidy ignore them. Off: every arrow is a branch, as before.",
+		routeLinks: "Route links around nodes",
+		routeLinksDesc: "After layout and tidy, links (see above) are reattached to the sides that keep them short and off other nodes. Needs \"Extra arrows are links\".",
 		hGap: "Horizontal gap",
 		hGapDesc: "Distance between a node and its children, in pixels. Below 160, Obsidian's curved edges start to loop back and cross each other.",
 		vGap: "Vertical gap",
@@ -167,6 +177,10 @@ const STRINGS = {
 		mobileKeysDesc: "手机或平板接了实体键盘时：输入时 Enter 新建节点，和电脑上一样。只用屏幕键盘时请关闭，让 Enter 保持换行。",
 		tabAddsChild: "Tab 新建子节点，Enter 新建同级节点",
 		tabAddsChildDesc: "输入时 Tab 往下一层，Enter 在同一层新建节点，和大多数思维导图软件一样。关掉则 Enter 新建子节点、Tab 新建同级节点。",
+		linkArrows: "多余的连线视为关联线",
+		linkArrowsDesc: "节点有多条连入的连线时，只保留一条作为分支（优先从右到左的那条，其次来自左侧节点的，再次最早的）；其余的以及指向左边的连线都是关联线，布局和整理时忽略。关掉则所有连线都当作分支，和以前一样。",
+		routeLinks: "关联线绕开节点",
+		routeLinksDesc: "布局和整理后，关联线（见上一项）重新接到让它最短、且不穿过其他节点的边上。需要打开「多余的连线视为关联线」。",
 		hGap: "水平间距",
 		hGapDesc: "节点和子节点之间的距离（像素）。小于 160 时，Obsidian 的弯曲连线会往回绕，看起来互相交叉。",
 		vGap: "垂直间距",
@@ -297,18 +311,122 @@ function moveBy(n: CanvasNode, dx: number, dy: number) {
 	n.moveAndResize({ x: n.x + dx, y: n.y + dy, width: n.width, height: n.height });
 }
 
+type Side = "top" | "right" | "bottom" | "left";
+const SIDES: Side[] = ["top", "right", "bottom", "left"];
+const SIDE_DIR: Record<Side, { x: number; y: number }> = { top: { x: 0, y: -1 }, right: { x: 1, y: 0 }, bottom: { x: 0, y: 1 }, left: { x: -1, y: 0 } };
+
+function sidePoint(n: CanvasNode, side: Side): { x: number; y: number } {
+	const cx = n.x + n.width / 2;
+	const cy = n.y + n.height / 2;
+	return { x: cx + (SIDE_DIR[side].x * n.width) / 2, y: cy + (SIDE_DIR[side].y * n.height) / 2 };
+}
+
+/** Points along the curve Obsidian draws for an edge: a cubic Bézier leaving each side along its normal. */
+function edgeCurve(a: CanvasNode, fs: Side, b: CanvasNode, ts: Side, steps = 24): { x: number; y: number }[] {
+	const p0 = sidePoint(a, fs);
+	const p3 = sidePoint(b, ts);
+	const pull = Math.min(150, Math.max(40, Math.hypot(p3.x - p0.x, p3.y - p0.y) / 2));
+	const p1 = { x: p0.x + SIDE_DIR[fs].x * pull, y: p0.y + SIDE_DIR[fs].y * pull };
+	const p2 = { x: p3.x + SIDE_DIR[ts].x * pull, y: p3.y + SIDE_DIR[ts].y * pull };
+	const pts: { x: number; y: number }[] = [];
+	for (let i = 0; i <= steps; i++) {
+		const t = i / steps;
+		const u = 1 - t;
+		pts.push({
+			x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+			y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+		});
+	}
+	return pts;
+}
+
+/** Area any curve between two nodes can sweep, with room for the side pulls. */
+function linkReach(a: CanvasNode, b: CanvasNode): BBox {
+	return {
+		minX: Math.min(a.x, b.x) - 160,
+		minY: Math.min(a.y, b.y) - 160,
+		maxX: Math.max(a.x + a.width, b.x + b.width) + 160,
+		maxY: Math.max(a.y + a.height, b.y + b.height) + 160,
+	};
+}
+
+function inBox(p: { x: number; y: number }, box: BBox, pad: number): boolean {
+	return p.x > box.minX - pad && p.x < box.maxX + pad && p.y > box.minY - pad && p.y < box.maxY + pad;
+}
+
 // ---------- Tree helpers ----------
 
+/** Set from the plugin: whether extra arrows are links (see branchEdges) or every arrow is a branch. */
+let linkArrows = (): boolean => true;
+
+/** The arrow that makes a node's branch, per node. Computed once per task (and after our own edge edits). */
+const branchCache = new WeakMap<Canvas, Map<CanvasNode, CanvasEdge>>();
+
+function forgetBranches(canvas: Canvas) {
+	branchCache.delete(canvas);
+}
+
+function center(n: CanvasNode): number {
+	return n.x + n.width / 2;
+}
+
+/**
+ * Every node gets at most one branch arrow, the one ranking first among its incoming arrows:
+ * right side to left side (what this plugin draws), then from a node on its left, then the oldest.
+ * Arrows pointing back to the left, or that would close a loop, are never branches. Everything else is a link.
+ */
+function branchEdges(canvas: Canvas): Map<CanvasNode, CanvasEdge> {
+	const cached = branchCache.get(canvas);
+	if (cached) return cached;
+	const order = new Map<CanvasEdge, number>();
+	const candidates: CanvasEdge[] = [];
+	for (const e of canvas.edges.values()) {
+		order.set(e, order.size);
+		const from = e.from.node;
+		const to = e.to.node;
+		if (!from || !to || from === to || isGroup(from) || isGroup(to)) continue;
+		if (center(to) < center(from)) continue; // pointing back: a link
+		candidates.push(e);
+	}
+	const rank = (e: CanvasEdge) => [
+		e.from.side === "right" && e.to.side === "left" ? 0 : 1,
+		center(e.from.node) < center(e.to.node) ? 0 : 1,
+		order.get(e) as number,
+	];
+	candidates.sort((a, b) => {
+		const ra = rank(a);
+		const rb = rank(b);
+		return ra[0] - rb[0] || ra[1] - rb[1] || ra[2] - rb[2];
+	});
+	const branch = new Map<CanvasNode, CanvasEdge>();
+	for (const e of candidates) {
+		const child = e.to.node;
+		if (branch.has(child)) continue;
+		// Walking up from the new parent must not reach the child.
+		let cur: CanvasNode | undefined = e.from.node;
+		while (cur && cur !== child) cur = branch.get(cur)?.from.node;
+		if (cur === child) continue;
+		branch.set(child, e);
+	}
+	branchCache.set(canvas, branch);
+	queueMicrotask(() => branchCache.delete(canvas));
+	return branch;
+}
+
 function parentOf(node: CanvasNode): CanvasNode | null {
+	if (linkArrows()) return branchEdges(node.canvas).get(node)?.from.node ?? null;
 	const edge = node.canvas.getEdgesForNode(node).find((e) => e.to.node === node && e.from.node !== node && !isGroup(e.from.node));
 	return edge ? edge.from.node : null;
 }
 
 function outgoing(node: CanvasNode): CanvasNode[] {
 	const out: CanvasNode[] = [];
+	const branches = linkArrows() ? branchEdges(node.canvas) : null;
 	for (const e of node.canvas.getEdgesForNode(node)) {
 		const target = e.to.node;
-		if (e.from.node === node && target !== node && !isGroup(target) && !out.includes(target)) out.push(target);
+		if (e.from.node !== node || target === node || isGroup(target) || out.includes(target)) continue;
+		if (branches && branches.get(target) !== e) continue; // a link, not one of this node's branches
+		out.push(target);
 	}
 	return out;
 }
@@ -354,6 +472,7 @@ export default class CanvasQuickMindmap extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+		linkArrows = () => this.settings.linkArrows;
 		const s = t();
 
 		this.addCommand({ id: "add-child", name: s.addChild, icon: "arrow-right-from-line", checkCallback: (checking) => this.commandFor("child", checking) });
@@ -734,13 +853,16 @@ export default class CanvasQuickMindmap extends Plugin {
 		if (this.settings.autoSize) this.fit(from);
 
 		const size = (this.settings.autoSize && this.measure(canvas, "")) || { ...canvas.config.defaultTextNodeDimensions };
-		const node = canvas.createTextNode({ pos: { x: from.x, y: from.y + from.height + this.settings.vGap }, size, text: "", focus: false, save: false });
+		// A child starts to the right of its parent, so its arrow never reads as one pointing back.
+		const x = action === "child" ? from.x + from.width + this.settings.hGap : from.x;
+		const node = canvas.createTextNode({ pos: { x, y: from.y + from.height + this.settings.vGap }, size, text: "", focus: false, save: false });
 
 		if (parent) {
 			canvas.importData({
 				nodes: [],
 				edges: [{ id: randomId(), fromNode: parent.id, fromSide: "right", toNode: node.id, toSide: "left" }],
 			});
+			forgetBranches(canvas);
 		}
 
 		if (parent && this.settings.autoLayout) {
@@ -832,6 +954,60 @@ export default class CanvasQuickMindmap extends Plugin {
 			}
 		};
 		place(root, root.x, root.y - labelSpace(root) - ((heights.get(root) as number) - labelSpace(root) - root.height) / 2);
+		if (this.settings.linkArrows && this.settings.routeLinks) this.routeLinks(root.canvas, new Set(tree.keys()));
+	}
+
+	/**
+	 * Reattach links (arrows that aren't branches) to the pair of sides whose curve crosses the fewest
+	 * other nodes, then is shortest. Right-to-left stays reserved for branches, so a link never turns into one.
+	 * With `only`, just the links touching those nodes.
+	 */
+	routeLinks(canvas: Canvas, only?: Set<CanvasNode>) {
+		const branches = branchEdges(canvas);
+		const branchSet = new Set(branches.values());
+		const others = [...canvas.nodes.values()].filter((n) => !isGroup(n));
+		const changed: unknown[] = [];
+		for (const e of canvas.edges.values()) {
+			const a = e.from.node;
+			const b = e.to.node;
+			if (branchSet.has(e) || !a || !b || a === b || isGroup(a) || isGroup(b)) continue;
+			if (only && !only.has(a) && !only.has(b)) continue;
+			const near = others.filter((n) => n !== a && n !== b && overlaps(bboxOf(n), linkReach(a, b), 0));
+			const score = (fs: Side, ts: Side) => {
+				const pts = edgeCurve(a, fs, b, ts);
+				let hits = 0;
+				for (const n of near) if (pts.some((p) => inBox(p, bboxOf(n), 6))) hits++;
+				// Curling back through its own ends is as bad as crossing a node.
+				const inner = pts.slice(3, -3);
+				if (inner.some((p) => inBox(p, bboxOf(a), -2))) hits++;
+				if (inner.some((p) => inBox(p, bboxOf(b), -2))) hits++;
+				let len = 0;
+				for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+				return hits * 1e6 + len;
+			};
+			const current = SIDES.includes(e.from.side as Side) && SIDES.includes(e.to.side as Side) && !(e.from.side === "right" && e.to.side === "left")
+				? score(e.from.side as Side, e.to.side as Side)
+				: Infinity;
+			let best: [Side, Side] | null = null;
+			let bestScore = Infinity;
+			for (const fs of SIDES) {
+				for (const ts of SIDES) {
+					if (fs === "right" && ts === "left") continue;
+					const sc = score(fs, ts);
+					if (sc < bestScore) {
+						bestScore = sc;
+						best = [fs, ts];
+					}
+				}
+			}
+			// Keep the current sides unless the new ones are clearly better, so links don't flicker.
+			if (!best || bestScore >= current - 20) continue;
+			changed.push({ ...e.getData(), fromSide: best[0], toSide: best[1] });
+		}
+		if (changed.length) {
+			canvas.importData({ nodes: [], edges: changed });
+			forgetBranches(canvas);
+		}
 	}
 
 	/**
@@ -866,6 +1042,7 @@ export default class CanvasQuickMindmap extends Plugin {
 			}
 			placed.push(box);
 		}
+		if (this.settings.linkArrows && this.settings.routeLinks) this.routeLinks(canvas);
 
 		// Loose nodes (no edges at all) that ended up under a tree go below everything.
 		const inTree = new Set(trees.flat());
@@ -887,11 +1064,15 @@ export default class CanvasQuickMindmap extends Plugin {
 		for (const [parent, kids] of tree) {
 			for (const e of canvas.getEdgesForNode(parent)) {
 				if (e.from.node !== parent || !kids.includes(e.to.node)) continue;
+				if (linkArrows() && branchEdges(canvas).get(e.to.node) !== e) continue; // links keep their sides
 				if (e.from.side === "right" && e.to.side === "left") continue;
 				changed.push({ ...e.getData(), fromSide: "right", toSide: "left" });
 			}
 		}
-		if (changed.length) canvas.importData({ nodes: [], edges: changed });
+		if (changed.length) {
+			canvas.importData({ nodes: [], edges: changed });
+			forgetBranches(canvas);
+		}
 	}
 
 	// ---------- Tidy button in the canvas controls (right-hand toolbar) ----------
@@ -1324,7 +1505,7 @@ class CanvasSearch {
 	}
 }
 
-type ToggleKey = "autoLayout" | "enterInEdit" | "tabAddsChild" | "mobileKeys" | "autoSize" | "renamePasted";
+type ToggleKey = "autoLayout" | "enterInEdit" | "tabAddsChild" | "mobileKeys" | "linkArrows" | "routeLinks" | "autoSize" | "renamePasted";
 type SliderKey = "hGap" | "vGap" | "maxWidth";
 type SettingSpec =
 	| { kind: "toggle"; key: ToggleKey; name: string; desc: string }
@@ -1339,6 +1520,8 @@ function settingSpecs(): SettingSpec[] {
 		{ kind: "toggle", key: "mobileKeys", name: s.mobileKeys, desc: s.mobileKeysDesc },
 		{ kind: "slider", key: "hGap", name: s.hGap, desc: s.hGapDesc, min: 80, max: 400, step: 10 },
 		{ kind: "slider", key: "vGap", name: s.vGap, desc: s.vGapDesc, min: 0, max: 200, step: 10 },
+		{ kind: "toggle", key: "linkArrows", name: s.linkArrows, desc: s.linkArrowsDesc },
+		{ kind: "toggle", key: "routeLinks", name: s.routeLinks, desc: s.routeLinksDesc },
 		{ kind: "toggle", key: "autoSize", name: s.autoSize, desc: s.autoSizeDesc },
 		{ kind: "slider", key: "maxWidth", name: s.maxWidth, desc: s.maxWidthDesc, min: 160, max: 800, step: 20 },
 		{ kind: "toggle", key: "renamePasted", name: s.renamePasted, desc: s.renamePastedDesc },
