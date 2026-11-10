@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Shift+Tab selects the parent node**, while typing or with a node selected, ready for Tab / Enter. Also available as the "Select parent node" command.
 - **Auto-size never splits a word.** A node is at least as wide as its longest word ("Macro" no longer shows as "Mac / ro"), growing past the max width if a single word needs it. Text is now measured beside a paragraph of a real node on screen, so custom themes and fonts no longer make nodes a few pixels too narrow.
 - **Nodes are no longer shrunk while the canvas is hidden.** Measuring text in a hidden canvas (background tab, switching workspaces or desktops) read every width as 0, so fitted nodes collapsed to 80x60. Measuring now waits until the canvas is visible.
 - **Renaming a pasted attachment only rewrites whole links.** Renaming `1.png` no longer touches `image-1.png` in text nodes.

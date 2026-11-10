@@ -46,6 +46,7 @@ nothing new to learn, nothing locked in.
 |---|---|---|
 | Enter | New child node | Edit the node |
 | Tab | New sibling node | New child node |
+| Shift+Tab | Select the parent node | Select the parent node |
 | Shift+Enter | Line break | — |
 | Cmd/Ctrl+F | Search the canvas | Search the canvas |
 

@@ -104,6 +104,7 @@ const STRINGS = {
 	en: {
 		addChild: "Add child node",
 		addSibling: "Add sibling node",
+		selectParent: "Select parent node",
 		relayout: "Tidy mind map layout",
 		tidyTip: "Tidy mind map",
 		search: "Search canvas",
@@ -138,6 +139,7 @@ const STRINGS = {
 	zh: {
 		addChild: "添加子节点",
 		addSibling: "添加同级节点",
+		selectParent: "选中父节点",
 		relayout: "整理导图布局",
 		tidyTip: "整理导图",
 		search: "搜索画布",
@@ -345,6 +347,18 @@ export default class CanvasQuickMindmap extends Plugin {
 		this.addCommand({ id: "add-child", name: s.addChild, icon: "arrow-right-from-line", checkCallback: (checking) => this.commandFor("child", checking) });
 		this.addCommand({ id: "add-sibling", name: s.addSibling, icon: "arrow-down-from-line", checkCallback: (checking) => this.commandFor("sibling", checking) });
 		this.addCommand({
+			id: "select-parent",
+			name: s.selectParent,
+			icon: "arrow-left-from-line",
+			checkCallback: (checking) => {
+				const canvas = this.activeCanvas();
+				const node = canvas && this.singleSelected(canvas);
+				if (!node || !parentOf(node)) return false;
+				if (!checking) this.selectParent(node);
+				return true;
+			},
+		});
+		this.addCommand({
 			id: "search-canvas",
 			name: s.search,
 			icon: "search",
@@ -457,9 +471,10 @@ export default class CanvasQuickMindmap extends Plugin {
 			this.openSearch(view);
 			return;
 		}
-		if (evt.ctrlKey || evt.metaKey || evt.altKey || evt.shiftKey) return;
-		// Tab adds a child; Enter opens the selected node for editing (siblings: Enter while typing, or the + below).
-		const action: Action | "edit" | null = evt.key === "Tab" ? "child" : evt.key === "Enter" ? "edit" : null;
+		const back = isShiftTab(evt);
+		if (!back && (evt.ctrlKey || evt.metaKey || evt.altKey || evt.shiftKey)) return;
+		// Tab adds a child; Shift+Tab goes back to the parent; Enter opens the selected node for editing (siblings: Enter while typing, or the + below).
+		const action: Action | "edit" | "parent" | null = back ? "parent" : evt.key === "Tab" ? "child" : evt.key === "Enter" ? "edit" : null;
 		if (!action) return;
 
 		const canvas = this.activeCanvas();
@@ -475,6 +490,7 @@ export default class CanvasQuickMindmap extends Plugin {
 		evt.preventDefault();
 		evt.stopPropagation();
 		if (action === "edit") this.edit(node);
+		else if (action === "parent") this.selectParent(node);
 		else this.add(node, action);
 	}
 
@@ -512,6 +528,14 @@ export default class CanvasQuickMindmap extends Plugin {
 			this.openSearch(canvasView);
 			return true;
 		}
+		if (isShiftTab(evt)) {
+			const node = this.nodeForEditor(view);
+			if (!node || !parentOf(node)) return false;
+			if (activeDocument.querySelector(".suggestion-container") || view.dom.ownerDocument.querySelector(".suggestion-container")) return false;
+			evt.preventDefault();
+			this.selectParent(node);
+			return true;
+		}
 		if (evt.ctrlKey || evt.metaKey || evt.altKey || evt.shiftKey) return false;
 		let action: Action | null = null;
 		// While typing: Enter goes one level deeper, Tab adds the next node on the same level.
@@ -540,6 +564,24 @@ export default class CanvasQuickMindmap extends Plugin {
 			}
 		}
 		return null;
+	}
+
+	/** Leave the node (stop editing if needed) and select its parent, ready for Tab / Enter. */
+	selectParent(node: CanvasNode) {
+		const parent = parentOf(node);
+		if (!parent) return;
+		const canvas = node.canvas;
+		if (node.isEditing) node.blur();
+		if (this.settings.autoSize && this.fit(node)) {
+			if (this.settings.autoLayout) this.layout(rootOf(parent));
+			canvas.requestSave();
+		}
+		// After the current key event, or the closing editor takes the selection back.
+		window.setTimeout(() => {
+			canvas.selectOnly(parent);
+			canvas.panIntoView(parent.getBBox());
+			canvas.wrapperEl.focus();
+		}, 0);
 	}
 
 	// ---------- Fitting nodes to their text ----------
@@ -1093,6 +1135,10 @@ export default class CanvasQuickMindmap extends Plugin {
 /** Apple keyboards (Mac, and iPad / iPhone with a hardware keyboard) use Cmd where others use Ctrl. */
 function usesCmd(): boolean {
 	return Platform.isMacOS || Platform.isIosApp;
+}
+
+function isShiftTab(evt: KeyboardEvent): boolean {
+	return evt.key === "Tab" && evt.shiftKey && !evt.ctrlKey && !evt.metaKey && !evt.altKey;
 }
 
 function isFindKey(evt: KeyboardEvent): boolean {
