@@ -18,12 +18,19 @@ nothing new to learn, nothing locked in.
   adds a child.
 - **+ buttons on the node.** Select a node and two round **+** buttons appear: right
   for a child, below for a sibling. They work on phones and tablets too.
-- **Automatic layout.** Each new node is placed in a tidy right-hand tree, so
-  nothing overlaps.
+- **Automatic layout, three structures.** Each map grows to the right, on both
+  sides of its central node (like MindNode), or downward like an org chart.
+  The structure is read from the map itself: branches left of the central node
+  mean both sides, arrows leaving it from below mean downward. Branches fit
+  into each other's free space, so nothing overlaps and little space is wasted.
+- **Balanced maps.** When the central node gets 5 branches (adjustable), the
+  map spreads them over both sides once, in MindNode's clockwise order. New
+  branches go to the shorter side; a branch you drag to the other side stays
+  there. Commands: *Balance map on both sides*, *Map grows to the right*,
+  *Map grows downward* (selected map, or every map when nothing is selected).
 - **Tidy button.** One click in the canvas toolbar re-lays out every tree on the
-  canvas, points every edge from the parent's right side to the child's left
-  side, pulls overlapping trees apart and moves loose cards out of the way.
-  One undo restores everything.
+  canvas, points branch arrows the way their branch grows, pulls overlapping
+  trees apart and moves loose cards out of the way. One undo restores everything.
 - **Nodes fit their text.** Mind map nodes grow and shrink as you type; long text
   wraps at a maximum width instead of making a huge card. Notes, images, code
   blocks, tables and headings keep their size.
@@ -70,6 +77,10 @@ choosing characters.
   manual positions and place new nodes in the nearest free spot).
 - **Enter adds a node while typing** — off keeps Enter as a line break.
 - **Tab adds a child, Enter a sibling** — swap the two keys while typing.
+- **Compact layout** — branches use each other's free space (off: each branch
+  takes a full-height band).
+- **Two sides from this many branches** — when to balance a one-sided map
+  automatically (0: never).
 - **Extra arrows are links** — a node with several incoming arrows keeps one
   as its branch (right-to-left first, then the one from a node on its left,
   then the oldest). The others, and arrows pointing back to the left, are links:

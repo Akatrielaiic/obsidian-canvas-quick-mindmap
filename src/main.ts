@@ -89,6 +89,8 @@ interface Settings {
 	mobileKeys: boolean;
 	linkArrows: boolean;
 	routeLinks: boolean;
+	compact: boolean;
+	balanceFrom: number;
 	hGap: number;
 	vGap: number;
 	renamePasted: boolean;
@@ -103,6 +105,8 @@ const DEFAULT_SETTINGS: Settings = {
 	mobileKeys: false,
 	linkArrows: true,
 	routeLinks: true,
+	compact: true,
+	balanceFrom: 5,
 	hGap: 160,
 	vGap: 20,
 	renamePasted: true,
@@ -138,6 +142,13 @@ const STRINGS = {
 		linkArrowsDesc: "A node with several incoming arrows keeps one as its branch (the right-to-left one, else the one from a node on its left, else the oldest); the others, and arrows pointing back to the left, are links: layout and tidy ignore them. Off: every arrow is a branch, as before.",
 		routeLinks: "Route links around nodes",
 		routeLinksDesc: "After layout and tidy, links (see above) are reattached to the sides that keep them short and off other nodes. Needs \"Extra arrows are links\".",
+		compact: "Compact layout",
+		compactDesc: "Branches fit into each other's free space instead of each taking a full-height band.",
+		balanceFrom: "Two sides from this many branches",
+		balanceFromDesc: "When the central node gets this many branches, the map spreads them on both sides (once: if you move them back to one side, it stays). 0 never balances.",
+		balance: "Balance map on both sides",
+		growRight: "Map grows to the right",
+		growDown: "Map grows downward",
 		hGap: "Horizontal gap",
 		hGapDesc: "Distance between a node and its children, in pixels. Below 160, Obsidian's curved edges start to loop back and cross each other.",
 		vGap: "Vertical gap",
@@ -181,6 +192,13 @@ const STRINGS = {
 		linkArrowsDesc: "节点有多条连入的连线时，只保留一条作为分支（优先从右到左的那条，其次来自左侧节点的，再次最早的）；其余的以及指向左边的连线都是关联线，布局和整理时忽略。关掉则所有连线都当作分支，和以前一样。",
 		routeLinks: "关联线绕开节点",
 		routeLinksDesc: "布局和整理后，关联线（见上一项）重新接到让它最短、且不穿过其他节点的边上。需要打开「多余的连线视为关联线」。",
+		compact: "紧凑布局",
+		compactDesc: "分支互相利用空隙，而不是各自占满整条高度。",
+		balanceFrom: "分支达到此数量时两侧分布",
+		balanceFromDesc: "中心节点的分支达到这个数量时，导图自动分布到左右两侧（只做一次：如果你把它们移回一侧，就保持不变）。0 表示从不。",
+		balance: "导图左右平衡",
+		growRight: "导图向右展开",
+		growDown: "导图向下展开",
 		hGap: "水平间距",
 		hGapDesc: "节点和子节点之间的距离（像素）。小于 160 时，Obsidian 的弯曲连线会往回绕，看起来互相交叉。",
 		vGap: "垂直间距",
@@ -370,6 +388,24 @@ function center(n: CanvasNode): number {
 	return n.x + n.width / 2;
 }
 
+function middle(n: CanvasNode): number {
+	return n.y + n.height / 2;
+}
+
+/** The side pairs branches use: right to left, left to right (left half of a map), bottom to top (downward map). */
+function isBranchLook(fromSide: string, toSide: string): boolean {
+	return (fromSide === "right" && toSide === "left") || (fromSide === "left" && toSide === "right") || (fromSide === "bottom" && toSide === "top");
+}
+
+/** An arrow going back toward where branches come from: never a branch. */
+function pointsBack(e: CanvasEdge): boolean {
+	const from = e.from.node;
+	const to = e.to.node;
+	if (e.from.side === "left" && e.to.side === "right") return center(to) > center(from);
+	if (e.from.side === "bottom" && e.to.side === "top") return middle(to) < middle(from);
+	return center(to) < center(from);
+}
+
 /**
  * Every node gets at most one branch arrow, the one ranking first among its incoming arrows:
  * right side to left side (what this plugin draws), then from a node on its left, then the oldest.
@@ -385,11 +421,11 @@ function branchEdges(canvas: Canvas): Map<CanvasNode, CanvasEdge> {
 		const from = e.from.node;
 		const to = e.to.node;
 		if (!from || !to || from === to || isGroup(from) || isGroup(to)) continue;
-		if (center(to) < center(from)) continue; // pointing back: a link
+		if (pointsBack(e)) continue; // a link
 		candidates.push(e);
 	}
 	const rank = (e: CanvasEdge) => [
-		e.from.side === "right" && e.to.side === "left" ? 0 : 1,
+		isBranchLook(e.from.side, e.to.side) ? 0 : 1,
 		center(e.from.node) < center(e.to.node) ? 0 : 1,
 		order.get(e) as number,
 	];
@@ -464,6 +500,63 @@ function subtreeBottom(node: CanvasNode, tree: Map<CanvasNode, CanvasNode[]>): n
 	return bottom;
 }
 
+// ---------- Map structures ----------
+
+/** Sides a branch arrow uses, by the direction its child grows. */
+const SIDE_PAIR: Record<"right" | "left" | "down", [string, string]> = { right: ["right", "left"], left: ["left", "right"], down: ["bottom", "top"] };
+
+/** Which way a node's children grow. */
+type Dir = "right" | "left" | "down";
+/** How a whole map is laid out: all to the right, on both sides of the root, or downward like an org chart. */
+type Structure = "right" | "both" | "down";
+
+/** The branch arrow from parent to child, if there is one. */
+function branchEdgeBetween(parent: CanvasNode, child: CanvasNode): CanvasEdge | undefined {
+	if (linkArrows()) {
+		const e = branchEdges(child.canvas).get(child);
+		return e && e.from.node === parent ? e : undefined;
+	}
+	return parent.canvas.getEdgesForNode(parent).find((e) => e.from.node === parent && e.to.node === child);
+}
+
+/** Read from the map itself, nothing is stored: arrows leaving the root from below mean downward, branches left of the root mean both sides. */
+function structureOf(root: CanvasNode, tree: Map<CanvasNode, CanvasNode[]>): Structure {
+	const kids = tree.get(root) ?? [];
+	let down = 0;
+	let left = 0;
+	for (const k of kids) {
+		const e = branchEdgeBetween(root, k);
+		if (e?.from.side === "bottom" && e.to.side === "top") down++;
+		else if (center(k) < center(root)) left++;
+	}
+	if (kids.length && down * 2 > kids.length) return "down";
+	return left ? "both" : "right";
+}
+
+/** Root branches clockwise, as MindNode orders them: right side top to bottom, then left side bottom to top. */
+function clockwise(root: CanvasNode, kids: CanvasNode[]): CanvasNode[] {
+	const right = kids.filter((k) => center(k) >= center(root)).sort((a, b) => a.y - b.y);
+	const left = kids.filter((k) => center(k) < center(root)).sort((a, b) => b.y - a.y);
+	return [...right, ...left];
+}
+
+interface Rect {
+	u1: number;
+	v1: number;
+	u2: number;
+	v2: number;
+}
+
+/** A laid-out subtree in its own frame: u grows away from the root, v runs along the siblings. */
+interface Shape {
+	rects: Rect[];
+	at: Map<CanvasNode, { u: number; v: number }>;
+}
+
+function spanV(rects: Rect[]): number {
+	return Math.max(...rects.map((r) => r.v2)) - Math.min(...rects.map((r) => r.v1));
+}
+
 // ---------- Plugin ----------
 
 export default class CanvasQuickMindmap extends Plugin {
@@ -500,6 +593,21 @@ export default class CanvasQuickMindmap extends Plugin {
 				return true;
 			},
 		});
+		const onMaps = (fn: (root: CanvasNode) => void) => (checking: boolean) => {
+			const canvas = this.activeCanvas();
+			if (!canvas || canvas.readonly) return false;
+			const node = this.singleSelected(canvas);
+			const roots = node ? [rootOf(node)] : [...canvas.nodes.values()].filter((n) => !isGroup(n) && !parentOf(n) && outgoing(n).length);
+			if (!roots.some((r) => outgoing(r).length)) return false;
+			if (!checking) {
+				for (const r of roots) if (outgoing(r).length) fn(r);
+				canvas.requestSave();
+			}
+			return true;
+		};
+		this.addCommand({ id: "balance-map", name: s.balance, icon: "git-fork", checkCallback: onMaps((r) => this.balance(r)) });
+		this.addCommand({ id: "grow-right", name: s.growRight, icon: "arrow-right-to-line", checkCallback: onMaps((r) => this.restructure(r, "right")) });
+		this.addCommand({ id: "grow-down", name: s.growDown, icon: "arrow-down-to-line", checkCallback: onMaps((r) => this.restructure(r, "down")) });
 		this.addCommand({
 			id: "tidy-layout",
 			name: s.relayout,
@@ -853,22 +961,38 @@ export default class CanvasQuickMindmap extends Plugin {
 		if (this.settings.autoSize) this.fit(from);
 
 		const size = (this.settings.autoSize && this.measure(canvas, "")) || { ...canvas.config.defaultTextNodeDimensions };
-		// A child starts to the right of its parent, so its arrow never reads as one pointing back.
-		const x = action === "child" ? from.x + from.width + this.settings.hGap : from.x;
-		const node = canvas.createTextNode({ pos: { x, y: from.y + from.height + this.settings.vGap }, size, text: "", focus: false, save: false });
+		// Which way the new node goes from its parent: a sibling follows `from`, a child its parent's branch.
+		const dir: Dir = !parent ? "right" : action === "child" ? this.growDir(from) : this.dirFrom(parent, from);
+		// Start on the right side of the parent, so the arrow never reads as one pointing back.
+		const { hGap, vGap } = this.settings;
+		let pos: { x: number; y: number };
+		if (action === "child") {
+			pos = dir === "down" ? { x: from.x, y: from.y + from.height + hGap } : dir === "left" ? { x: from.x - hGap - size.width, y: from.y } : { x: from.x + from.width + hGap, y: from.y };
+		} else {
+			pos = dir === "down" ? { x: from.x + from.width + vGap, y: from.y } : { x: from.x, y: from.y + from.height + vGap };
+		}
+		const node = canvas.createTextNode({ pos, size, text: "", focus: false, save: false });
 
 		if (parent) {
+			const [fromSide, toSide] = SIDE_PAIR[dir];
 			canvas.importData({
 				nodes: [],
-				edges: [{ id: randomId(), fromNode: parent.id, fromSide: "right", toNode: node.id, toSide: "left" }],
+				edges: [{ id: randomId(), fromNode: parent.id, fromSide, toNode: node.id, toSide }],
 			});
 			forgetBranches(canvas);
 		}
 
 		if (parent && this.settings.autoLayout) {
-			this.layout(rootOf(parent), { node, after: action === "sibling" ? from : null });
+			const root = rootOf(parent);
+			this.layout(root, { node, after: action === "sibling" ? from : null });
+			// A one-sided map that just reached the threshold spreads over both sides, once.
+			const n = this.settings.balanceFrom;
+			if (parent === root && n > 0) {
+				const tree = buildTree(root);
+				if (structureOf(root, tree) === "right" && (tree.get(root) ?? []).length === n) this.balance(root);
+			}
 		} else {
-			this.placeFreely(node, from, action);
+			this.placeFreely(node, from, action, dir);
 		}
 
 		canvas.requestSave();
@@ -884,14 +1008,26 @@ export default class CanvasQuickMindmap extends Plugin {
 	}
 
 	/** Without auto layout: put the node next to its relatives, then step down past anything in the way. */
-	private placeFreely(node: CanvasNode, from: CanvasNode, action: Action) {
+	private placeFreely(node: CanvasNode, from: CanvasNode, action: Action, dir: Dir = "right") {
 		const { hGap, vGap } = this.settings;
 		let x: number;
 		let y: number;
+		if (dir === "down") {
+			// Downward map: children in a row under the parent, siblings to the right; step right past anything in the way.
+			x = action === "child" ? from.x : from.x + from.width + vGap;
+			y = action === "child" ? from.y + from.height + hGap : from.y;
+			for (let i = 0; i < 200; i++) {
+				const hits = node.canvas.getIntersectingNodes(bboxOf({ x, y, width: node.width, height: node.height })).filter((n) => n !== node && !isGroup(n));
+				if (!hits.length) break;
+				x = Math.max(...hits.map((n) => n.x + n.width)) + vGap;
+			}
+			node.moveAndResize({ x, y, width: node.width, height: node.height });
+			return;
+		}
 		if (action === "child") {
 			const tree = buildTree(from);
 			const siblings = (tree.get(from) ?? []).filter((c) => c !== node);
-			x = from.x + from.width + hGap;
+			x = dir === "left" ? from.x - hGap - node.width : from.x + from.width + hGap;
 			if (siblings.length) {
 				const last = siblings[siblings.length - 1];
 				y = subtreeBottom(last, tree) + vGap;
@@ -912,10 +1048,19 @@ export default class CanvasQuickMindmap extends Plugin {
 		node.moveAndResize({ x, y, width: node.width, height: node.height });
 	}
 
-	/** Classic right-hand tree: children stacked in a column, centred on their parent. The root stays where it is. */
-	layout(root: CanvasNode, insert?: { node: CanvasNode; after: CanvasNode | null }) {
-		const { hGap, vGap } = this.settings;
+	/**
+	 * Lay out a whole map around its root, which never moves. The structure is read from the map unless
+	 * `groups` says explicitly which root branches go which way (balancing, switching structure).
+	 */
+	layout(
+		root: CanvasNode,
+		insert?: { node: CanvasNode; after: CanvasNode | null },
+		groups?: { dir: Dir; kids: CanvasNode[] }[],
+	) {
 		const tree = buildTree(root);
+		const structure = groups ? (groups.some((g) => g.dir === "down") ? "down" : "both") : structureOf(root, tree);
+		// Siblings in reading order: left to right in a downward map, top to bottom otherwise.
+		if (structure === "down") for (const kids of tree.values()) kids.sort((a, b) => a.x - b.x || a.y - b.y);
 
 		if (insert) {
 			for (const kids of tree.values()) {
@@ -928,38 +1073,165 @@ export default class CanvasQuickMindmap extends Plugin {
 			}
 		}
 
-		const heights = new Map<CanvasNode, number>();
-		const heightOf = (n: CanvasNode): number => {
-			const kids = tree.get(n) ?? [];
-			let total = 0;
-			kids.forEach((c, i) => (total += heightOf(c) + (i ? vGap : 0)));
-			const h = Math.max(labelSpace(n) + n.height, total);
-			heights.set(n, h);
-			return h;
-		};
-		heightOf(root);
-
-		const place = (n: CanvasNode, x: number, top: number) => {
-			const h = heights.get(n) as number;
-			const y = top + (h - labelSpace(n) - n.height) / 2 + labelSpace(n);
-			if (Math.abs(n.x - x) > 0.5 || Math.abs(n.y - y) > 0.5) n.moveAndResize({ x, y, width: n.width, height: n.height });
-			const kids = tree.get(n) ?? [];
-			let total = 0;
-			kids.forEach((c, i) => (total += (heights.get(c) as number) + (i ? vGap : 0)));
-			let cursor = top + (h - total) / 2;
-			const cx = x + n.width + hGap;
-			for (const c of kids) {
-				place(c, cx, cursor);
-				cursor += (heights.get(c) as number) + vGap;
+		const rootKids = tree.get(root) ?? [];
+		if (!groups) {
+			if (structure === "down") groups = [{ dir: "down", kids: rootKids }];
+			else if (structure === "right") groups = [{ dir: "right", kids: rootKids }];
+			else {
+				groups = [
+					{ dir: "right", kids: rootKids.filter((k) => center(k) >= center(root)) },
+					{ dir: "left", kids: rootKids.filter((k) => center(k) < center(root)) },
+				];
 			}
-		};
-		place(root, root.x, root.y - labelSpace(root) - ((heights.get(root) as number) - labelSpace(root) - root.height) / 2);
+		}
+
+		const dirs = new Map<CanvasNode, Dir>();
+		for (const g of groups) {
+			if (!g.kids.length) continue;
+			const shape = this.shape(root, tree, g.kids, g.dir === "down");
+			for (const [n, p] of shape.at) {
+				if (n === root) continue;
+				let x: number;
+				let y: number;
+				if (g.dir === "down") {
+					x = root.x + p.v;
+					y = root.y + p.u;
+				} else if (g.dir === "left") {
+					x = root.x + root.width - p.u - n.width;
+					y = root.y + p.v;
+				} else {
+					x = root.x + p.u;
+					y = root.y + p.v;
+				}
+				if (Math.abs(n.x - x) > 0.5 || Math.abs(n.y - y) > 0.5) n.moveAndResize({ x, y, width: n.width, height: n.height });
+				dirs.set(n, g.dir);
+			}
+		}
+		this.straightenEdges(root.canvas, tree, dirs);
 		if (this.settings.linkArrows && this.settings.routeLinks) this.routeLinks(root.canvas, new Set(tree.keys()));
 	}
 
 	/**
+	 * Place `kids` (and everything below them) beside `node`, in a frame where u grows away from the root and
+	 * v runs along the siblings. Each sibling goes as close to the previous ones as its own outline allows
+	 * (compact) or below their whole band (not compact); the parent is centred on its children.
+	 */
+	private shape(node: CanvasNode, tree: Map<CanvasNode, CanvasNode[]>, kids: CanvasNode[], down: boolean): Shape {
+		const { hGap, vGap } = this.settings;
+		const sibGap = down ? Math.max(20, vGap * 2) : vGap;
+		const size = (n: CanvasNode) => (down ? { su: n.height, sv: n.width, pre: 0 } : { su: n.width, sv: n.height, pre: labelSpace(n) });
+		const own = size(node);
+		const rects: Rect[] = [{ u1: 0, v1: -own.pre, u2: own.su, v2: own.sv }];
+		const at = new Map<CanvasNode, { u: number; v: number }>([[node, { u: 0, v: 0 }]]);
+		if (!kids.length) return { rects, at };
+
+		const childRects: Rect[] = [];
+		const childAt = new Map<CanvasNode, { u: number; v: number }>();
+		let prevEnd = -Infinity;
+		let first = 0;
+		let last = 0;
+		kids.forEach((k, i) => {
+			const sub = this.shape(k, tree, tree.get(k) ?? [], down);
+			const ks = size(k);
+			const du = own.su + hGap + (down ? labelSpace(k) : 0);
+			const outline = this.settings.compact
+				? sub.rects
+				: [{ u1: Math.min(...sub.rects.map((r) => r.u1)), v1: Math.min(...sub.rects.map((r) => r.v1)), u2: Math.max(...sub.rects.map((r) => r.u2)), v2: Math.max(...sub.rects.map((r) => r.v2)) }];
+			// Keep the order: this node starts below the previous sibling node.
+			let dv = i === 0 ? 0 : prevEnd + sibGap + ks.pre;
+			for (const p of childRects) {
+				for (const r of outline) {
+					if (r.u1 + du < p.u2 && p.u1 < r.u2 + du) dv = Math.max(dv, p.v2 + sibGap - r.v1);
+				}
+			}
+			for (const r of outline) childRects.push({ u1: r.u1 + du, v1: r.v1 + dv, u2: r.u2 + du, v2: r.v2 + dv });
+			for (const [n, p] of sub.at) childAt.set(n, { u: p.u + du, v: p.v + dv });
+			if (i === 0) first = dv;
+			prevEnd = dv + ks.sv;
+			last = prevEnd;
+		});
+		// Centre the parent on its children nodes.
+		const off = own.sv / 2 - (first + last) / 2;
+		for (const r of childRects) rects.push({ u1: r.u1, v1: r.v1 + off, u2: r.u2, v2: r.v2 + off });
+		for (const [n, p] of childAt) at.set(n, { u: p.u, v: p.v + off });
+		return { rects, at };
+	}
+
+	/** Height (or width, downward) a root branch takes, with everything below it. */
+	private branchSpan(k: CanvasNode, tree: Map<CanvasNode, CanvasNode[]>, down: boolean): number {
+		return spanV(this.shape(k, tree, tree.get(k) ?? [], down).rects);
+	}
+
+	/** Spread the root branches over both sides, keeping their clockwise order and evening out the two heights. */
+	balance(root: CanvasNode) {
+		const tree = buildTree(root);
+		const order = clockwise(root, tree.get(root) ?? []);
+		if (order.length < 2) return;
+		const spans = order.map((k) => this.branchSpan(k, tree, false));
+		const total = spans.reduce((a, b) => a + b, 0);
+		let best = 1;
+		let bestDiff = Infinity;
+		let acc = 0;
+		for (let k = 1; k < order.length; k++) {
+			acc += spans[k - 1];
+			const diff = Math.abs(acc - (total - acc));
+			if (diff < bestDiff) {
+				bestDiff = diff;
+				best = k;
+			}
+		}
+		this.layout(root, undefined, [
+			{ dir: "right", kids: order.slice(0, best) },
+			{ dir: "left", kids: order.slice(best).reverse() },
+		]);
+	}
+
+	/** Switch a map to one structure, keeping the branches' clockwise order. */
+	restructure(root: CanvasNode, to: "right" | "down") {
+		const tree = buildTree(root);
+		const kids = tree.get(root) ?? [];
+		const order = structureOf(root, tree) === "down" ? [...kids].sort((a, b) => a.x - b.x) : clockwise(root, kids);
+		this.layout(root, undefined, [{ dir: to, kids: order }]);
+	}
+
+	/** Which way new children of `node` grow: its branch's side, or the shorter side for a new root branch. */
+	private growDir(node: CanvasNode): Dir {
+		const root = rootOf(node);
+		const tree = buildTree(root);
+		const structure = structureOf(root, tree);
+		if (structure === "down") return "down";
+		if (structure === "right") return "right";
+		if (node === root) {
+			const kids = tree.get(root) ?? [];
+			const span = (side: CanvasNode[]) => side.reduce((a, k) => a + this.branchSpan(k, tree, false) + this.settings.vGap, 0);
+			const right = kids.filter((k) => center(k) >= center(root));
+			const left = kids.filter((k) => center(k) < center(root));
+			return span(left) < span(right) ? "left" : "right";
+		}
+		return this.sideOf(node, root);
+	}
+
+	/** Direction of an existing child from its parent. */
+	private dirFrom(parent: CanvasNode, child: CanvasNode): Dir {
+		const e = branchEdgeBetween(parent, child);
+		if (e?.from.side === "bottom" && e.to.side === "top") return "down";
+		return center(child) < center(parent) ? "left" : "right";
+	}
+
+	/** Left or right of the root, by the root branch a node belongs to. */
+	private sideOf(node: CanvasNode, root: CanvasNode): Dir {
+		let branch = node;
+		for (let i = 0; i < 1000; i++) {
+			const p = parentOf(branch);
+			if (!p || p === root) break;
+			branch = p;
+		}
+		return center(branch) < center(root) ? "left" : "right";
+	}
+
+	/**
 	 * Reattach links (arrows that aren't branches) to the pair of sides whose curve crosses the fewest
-	 * other nodes, then is shortest. Right-to-left stays reserved for branches, so a link never turns into one.
+	 * other nodes, then is shortest. The side pairs branches use stay reserved for them, so a link never turns into one.
 	 * With `only`, just the links touching those nodes.
 	 */
 	routeLinks(canvas: Canvas, only?: Set<CanvasNode>) {
@@ -985,14 +1257,14 @@ export default class CanvasQuickMindmap extends Plugin {
 				for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
 				return hits * 1e6 + len;
 			};
-			const current = SIDES.includes(e.from.side as Side) && SIDES.includes(e.to.side as Side) && !(e.from.side === "right" && e.to.side === "left")
+			const current = SIDES.includes(e.from.side as Side) && SIDES.includes(e.to.side as Side) && !isBranchLook(e.from.side, e.to.side)
 				? score(e.from.side as Side, e.to.side as Side)
 				: Infinity;
 			let best: [Side, Side] | null = null;
 			let bestScore = Infinity;
 			for (const fs of SIDES) {
 				for (const ts of SIDES) {
-					if (fs === "right" && ts === "left") continue;
+					if (isBranchLook(fs, ts)) continue;
 					const sc = score(fs, ts);
 					if (sc < bestScore) {
 						bestScore = sc;
@@ -1023,7 +1295,6 @@ export default class CanvasQuickMindmap extends Plugin {
 		const trees: CanvasNode[][] = [];
 		for (const root of roots) {
 			const tree = buildTree(root);
-			this.straightenEdges(canvas, tree);
 			if (this.settings.autoSize) for (const n of tree.keys()) this.fit(n);
 			this.layout(root);
 			trees.push([...tree.keys()]);
@@ -1058,15 +1329,16 @@ export default class CanvasQuickMindmap extends Plugin {
 		canvas.requestSave();
 	}
 
-	/** Parent → child edges leave from the parent's right side and enter the child's left side. */
-	private straightenEdges(canvas: Canvas, tree: Map<CanvasNode, CanvasNode[]>) {
+	/** Branch arrows follow their direction: right to left, left to right on the left half, bottom to top downward. */
+	private straightenEdges(canvas: Canvas, tree: Map<CanvasNode, CanvasNode[]>, dirs: Map<CanvasNode, Dir>) {
 		const changed: unknown[] = [];
 		for (const [parent, kids] of tree) {
 			for (const e of canvas.getEdgesForNode(parent)) {
 				if (e.from.node !== parent || !kids.includes(e.to.node)) continue;
 				if (linkArrows() && branchEdges(canvas).get(e.to.node) !== e) continue; // links keep their sides
-				if (e.from.side === "right" && e.to.side === "left") continue;
-				changed.push({ ...e.getData(), fromSide: "right", toSide: "left" });
+				const [fromSide, toSide] = SIDE_PAIR[dirs.get(e.to.node) ?? "right"];
+				if (e.from.side === fromSide && e.to.side === toSide) continue;
+				changed.push({ ...e.getData(), fromSide, toSide });
 			}
 		}
 		if (changed.length) {
@@ -1505,8 +1777,8 @@ class CanvasSearch {
 	}
 }
 
-type ToggleKey = "autoLayout" | "enterInEdit" | "tabAddsChild" | "mobileKeys" | "linkArrows" | "routeLinks" | "autoSize" | "renamePasted";
-type SliderKey = "hGap" | "vGap" | "maxWidth";
+type ToggleKey = "autoLayout" | "enterInEdit" | "tabAddsChild" | "mobileKeys" | "linkArrows" | "routeLinks" | "compact" | "autoSize" | "renamePasted";
+type SliderKey = "hGap" | "vGap" | "maxWidth" | "balanceFrom";
 type SettingSpec =
 	| { kind: "toggle"; key: ToggleKey; name: string; desc: string }
 	| { kind: "slider"; key: SliderKey; name: string; desc: string; min: number; max: number; step: number };
@@ -1520,6 +1792,8 @@ function settingSpecs(): SettingSpec[] {
 		{ kind: "toggle", key: "mobileKeys", name: s.mobileKeys, desc: s.mobileKeysDesc },
 		{ kind: "slider", key: "hGap", name: s.hGap, desc: s.hGapDesc, min: 80, max: 400, step: 10 },
 		{ kind: "slider", key: "vGap", name: s.vGap, desc: s.vGapDesc, min: 0, max: 200, step: 10 },
+		{ kind: "toggle", key: "compact", name: s.compact, desc: s.compactDesc },
+		{ kind: "slider", key: "balanceFrom", name: s.balanceFrom, desc: s.balanceFromDesc, min: 0, max: 12, step: 1 },
 		{ kind: "toggle", key: "linkArrows", name: s.linkArrows, desc: s.linkArrowsDesc },
 		{ kind: "toggle", key: "routeLinks", name: s.routeLinks, desc: s.routeLinksDesc },
 		{ kind: "toggle", key: "autoSize", name: s.autoSize, desc: s.autoSizeDesc },

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Three map structures: right, both sides, downward.** Read from the map (branches left of the root, or root arrows leaving from below), nothing stored. Left-half branches grow leftward with left-to-right arrows; downward maps use bottom-to-top arrows and lay siblings out in rows.
+- **Automatic balancing.** When the root reaches *Two sides from this many branches* (5 by default) the map spreads over both sides once, clockwise; new root branches go to the shorter side; sides are sticky. Commands: *Balance map on both sides*, *Map grows to the right*, *Map grows downward*.
+- **Compact layout** (setting, on by default): each sibling subtree goes as close as its outline allows instead of reserving a full band; parents are centred on their children.
+- Branch arrows recognised in all three looks (right-left, left-right, bottom-top); an arrow of one of these looks pointing back toward its source's parent is a link. Links never take a branch look when routed.
 - **Shift+Tab selects the parent node**, while typing or with a node selected, ready for Tab / Enter. Also available as the "Select parent node" command.
 - **New setting: Tab adds a child, Enter a sibling.** Swaps the two keys while typing, for people used to other mind map apps. Off by default, so nothing changes for existing users.
 - **New setting: Keyboard shortcuts on mobile.** With a hardware keyboard on a phone or tablet, Enter adds nodes while typing, as on desktop. Off by default.
