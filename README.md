@@ -22,14 +22,14 @@ nothing new to learn, nothing locked in.
 - **Type your map.** While editing a node, **Enter** adds a child node and **Tab**
   adds a sibling. **Shift+Enter** is a line break. The new node is connected,
   placed and opened for typing.
-- **Keyboard on a selected node.** **Enter** edits it (cursor at the end), **Tab**
+- **Keyboard on a selected node.** **Shift+Enter** edits it (cursor at the end), **Tab**
   adds a child.
 - **Move around with Shift+arrow.** With a node selected, **Shift+arrow** goes
   to its parent, its nearest child, or the previous / next node on the same
   level. **Alt+arrow** moves the node before or after its sibling. Plain arrows
   still nudge the card, as Canvas does.
 - **Write on arrows from the keyboard.** On the way to a parent or child,
-  Shift+arrow stops on the arrow that joins the two nodes. **Enter** opens its
+  Shift+arrow stops on the arrow that joins the two nodes. **Shift+Enter** opens its
   label, **Esc** leaves it with the arrow still selected.
 - **Collapse branches.** The chevron button on a selected node hides everything
   below it; a badge shows how many nodes are hidden, click it to open the branch
@@ -58,7 +58,7 @@ nothing new to learn, nothing locked in.
   find bar. It searches card text, group labels, links, file names and the
   content of embedded notes. Matches are highlighted, the rest dimmed;
   **Enter / Shift+Enter** jump between them, **Esc** closes and leaves the
-  result selected so Enter edits it.
+  result selected so Shift+Enter edits it.
 - **Branch colours.** A new node takes the colour of the node it was added
   from, so a coloured branch stays coloured as it grows.
 - **Markdown lists in and out.** *Copy map as Markdown list* puts the selected
@@ -77,15 +77,15 @@ nothing new to learn, nothing locked in.
 
 | Key | While typing in a node | Node selected |
 |---|---|---|
-| Enter | New child node | Edit the node |
+| Enter | New child node | — |
 | Tab | New sibling node | New child node |
 | Shift+Tab | Select the parent node | Select the parent node |
-| Shift+Enter | Line break | — |
+| Shift+Enter | Line break | Edit the node |
 | Shift+arrow | Select text | Go to the parent, child or neighbouring node, stopping on the arrow in between |
 | Alt+Up / Alt+Down | — | Move the node before / after its sibling |
 | Cmd/Ctrl+F | Search the canvas | Search the canvas |
 
-With an arrow selected, **Enter** writes its label, **Esc** stops writing and
+With an arrow selected, **Shift+Enter** writes its label, **Esc** stops writing and
 keeps the arrow selected, and **Shift+arrow** goes on to the node at either end
 or to the next branch's arrow.
 
@@ -166,10 +166,10 @@ The layout (`src/layout.ts`), tree reading (`src/tree.ts`), link renaming
 ## 中文说明
 
 把 Obsidian 画布当思维导图用：输入时 **Enter** 新建子节点、**Tab** 新建同级节点，
-自动连线、自动排版；选中节点按 **Enter** 编辑；节点旁边的 **+** 按钮手机上也能用；
+自动连线、自动排版；选中节点按 **Shift+Enter** 编辑；节点旁边的 **+** 按钮手机上也能用；
 右侧工具栏一键「整理导图」；节点大小跟随文字；**⌘F** 搜索画布；图片节点一键复制；
 粘贴进画布的图片按画布名重命名。选中节点后**Shift+方向键**在节点间移动，**Alt+方向键**调整同级顺序；
-Shift+方向键会在连线上停一下，此时按 **Enter** 写连线标签，**Esc** 退出；
+Shift+方向键会在连线上停一下，此时按 **Shift+Enter** 写连线标签，**Esc** 退出；
 分支可以折叠 / 展开；新节点沿用分支颜色；导图可以复制为 Markdown 列表，列表也可以粘贴成导图。
 
 ## Credits and license

@@ -178,7 +178,7 @@ export class CanvasSearch {
 		this.canvas.wrapperEl.querySelectorAll(".arbor-search-hit, .arbor-search-current").forEach((el) => el.removeClass("arbor-search-hit", "arbor-search-current"));
 	}
 
-	/** `keepCurrent`: leave the result you were on selected, so Enter edits it straight away. */
+	/** `keepCurrent`: leave the result you were on selected, so Shift+Enter edits it straight away. */
 	close(keepCurrent: boolean) {
 		window.clearTimeout(this.timer);
 		this.pending = false;

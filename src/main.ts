@@ -333,9 +333,11 @@ export default class CanvasArbor extends Plugin {
 			return;
 		}
 		const back = isShiftTab(evt);
-		if (!back && (evt.ctrlKey || evt.metaKey || evt.altKey || evt.shiftKey)) return;
-		// Tab adds a child; Shift+Tab goes back to the parent; Enter opens the selected node for editing (siblings: Enter while typing, or the + below).
-		const action: Action | "edit" | "parent" | null = back ? "parent" : evt.key === "Tab" ? "child" : evt.key === "Enter" ? "edit" : null;
+		// Shift+Enter opens the selected node or arrow for writing (while typing it stays a line break); plain Enter does nothing here.
+		const shiftEnter = evt.key === "Enter" && evt.shiftKey;
+		if (!back && (evt.ctrlKey || evt.metaKey || evt.altKey || (evt.shiftKey && !shiftEnter))) return;
+		// Tab adds a child; Shift+Tab goes back to the parent (siblings: Enter while typing, or the + below).
+		const action: Action | "edit" | "parent" | null = back ? "parent" : evt.key === "Tab" ? "child" : shiftEnter ? "edit" : null;
 		if (!action || !this.keyIsForCanvas(evt, canvas)) return;
 
 		const edge = action === "edit" ? this.selectedEdge(canvas) : null;

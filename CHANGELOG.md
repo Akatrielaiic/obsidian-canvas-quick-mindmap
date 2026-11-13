@@ -1,11 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Shift+Enter opens the selection for writing**, a node or an arrow's label. Plain Enter on a selected node or arrow no longer does (while typing it still adds a node).
+
 ## 0.3.0
 
 New:
 
 - **Shift+arrow moves between nodes.** With a node selected: toward the root for the parent, away from it for the nearest child, across for the previous or next node on the same level (a sibling, or the neighbouring branch's node). Follows the map's structure, so in a downward map Down is the child. Plain arrows still nudge the card. Setting *Shift+arrow moves between nodes* (on by default) gives the keys back to Canvas.
-- **Shift+arrow stops on arrows, Enter writes on them.** Between a node and its parent or child, Shift+arrow first selects the arrow that joins them; across, it goes from one arrow to the next. With an arrow selected, Enter opens its label and Esc leaves it with the arrow still selected. Setting *Shift+arrow stops on arrows* (on by default) goes back to node-to-node.
+- **Shift+arrow stops on arrows.** Between a node and its parent or child, Shift+arrow first selects the arrow that joins them; across, it goes from one arrow to the next. With an arrow selected, Enter opens its label and Esc leaves it with the arrow still selected. Setting *Shift+arrow stops on arrows* (on by default) goes back to node-to-node.
 - **Alt+arrow reorders siblings.** Alt+Up / Alt+Down (Alt+Left / Alt+Right in a downward map) trade the node's place with its neighbour and lay the map out again. Also as commands: *Move node before its previous sibling*, *Move node after its next sibling*.
 - **Collapse and expand branches.** A button on the selected node (or the *Collapse or expand branch* command) hides everything below it; a badge shows how many nodes are hidden, and a click on it opens the branch again. Layout closes the gap. The nodes stay in the `.canvas` file, only hidden, so nothing is lost without the plugin; which branches are collapsed is kept in the plugin's data. Searching opens the branch a result is in. Command: *Expand all branches*.
 - **New nodes take the branch's colour** (setting, on by default): the node's colour comes from the node it was added from, the arrow's from that node's arrow.
