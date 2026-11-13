@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1
 
 - **Shift+Enter opens the selection for writing**, a node or an arrow's label. Plain Enter on a selected node or arrow no longer does (while typing it still adds a node).
 
