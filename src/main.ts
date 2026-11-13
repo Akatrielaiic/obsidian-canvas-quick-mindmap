@@ -42,6 +42,9 @@ interface Size { width: number; height: number }
 const ARROWS = new Set<string>(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
 /** A key registered in a Scope, as Obsidian keeps it (internal). */
+/** Free space kept on each side of an arrow's label. */
+const LABEL_AIR = 56;
+
 interface ScopeKey { key: string | null; modifiers: string | null; func(evt: KeyboardEvent, ctx: KeymapContext): unknown }
 
 export default class CanvasArbor extends Plugin {
@@ -154,12 +157,14 @@ export default class CanvasArbor extends Plugin {
 		]);
 
 		// A node selected but not being edited.
-		this.registerDomEvent(window, "keydown", (evt) => this.onWindowKeydown(evt), { capture: true });
-		this.registerEvent(
-			this.app.workspace.on("window-open", (_w, win) => {
-				this.registerDomEvent(win, "keydown", (evt) => this.onWindowKeydown(evt), { capture: true });
-			}),
-		);
+		const listen = (win: Window) => {
+			this.registerDomEvent(win, "keydown", (evt) => this.onWindowKeydown(evt), { capture: true });
+			// Writing on an arrow, or leaving its label (an empty one is removed): the map makes room for it.
+			this.registerDomEvent(win, "input", (evt) => this.onLabelChanged(evt), { capture: true });
+			this.registerDomEvent(win, "focusout", (evt) => this.onLabelChanged(evt), { capture: true });
+		};
+		listen(window);
+		this.registerEvent(this.app.workspace.on("window-open", (_w, win) => listen(win)));
 
 		this.app.workspace.onLayoutReady(() => {
 			this.onLayoutChanged();
@@ -265,13 +270,43 @@ export default class CanvasArbor extends Plugin {
 		return item && "from" in item && "to" in item ? item : null;
 	}
 
+	private edgeOfLabel(canvas: Canvas, label: Element): CanvasEdge | null {
+		for (const e of canvas.edges.values()) if (e.labelElement?.textareaEl === label) return e;
+		return null;
+	}
+
+	private labelTimers = new Map<CanvasEdge, number>();
+
+	/** The label of a branch arrow changed: lay the map out again (debounced), so the label fits between its nodes. */
+	private onLabelChanged(evt: Event) {
+		if (!this.settings.autoLayout) return;
+		const target = evt.target as HTMLElement | null;
+		const label = target?.closest?.(".canvas-path-label");
+		if (!label) return;
+		const canvas = this.canvasViews().find((v) => v.canvas?.canvasEl.contains(label))?.canvas;
+		const edge = canvas && !canvas.readonly ? this.edgeOfLabel(canvas, label) : null;
+		if (!canvas || !edge) return;
+		window.clearTimeout(this.labelTimers.get(edge));
+		this.labelTimers.set(
+			edge,
+			window.setTimeout(() => {
+				this.labelTimers.delete(edge);
+				const parent = edge.from.node;
+				const child = edge.to.node;
+				if (canvas.edges.get(edge.id) !== edge || branchEdgeBetween(parent, child) !== edge) return;
+				this.layout(rootOf(child));
+				canvas.requestSave();
+			}, 150),
+		);
+	}
+
 	/** Esc while writing an arrow's label: stop writing and keep the arrow selected, ready for Shift+arrow. */
 	private leaveLabel(evt: KeyboardEvent, canvas: Canvas): boolean {
 		const target = evt.target as HTMLElement | null;
 		if (!target?.closest || !canvas.wrapperEl.contains(target)) return false;
 		const label = target.closest(".canvas-path-label");
 		if (!label) return false;
-		const edge = [...canvas.edges.values()].find((e) => e.labelElement?.textareaEl === label);
+		const edge = this.edgeOfLabel(canvas, label);
 		if (!edge) return false;
 		edge.labelElement?.blur?.();
 		// After the current key event, in case Canvas clears the selection on Esc.
@@ -493,11 +528,13 @@ export default class CanvasArbor extends Plugin {
 		const parent = parentOf(node);
 		if (!parent) return;
 		const canvas = node.canvas;
+		const typed = this.typedText(node);
 		if (node.isEditing) node.blur();
-		if (this.settings.autoSize && this.fit(node)) {
+		if (this.settings.autoSize && this.fit(node, typed)) {
 			if (this.settings.autoLayout) this.layout(rootOf(parent));
 			canvas.requestSave();
 		}
+		this.fitLater(node);
 		// After the current key event, or the closing editor takes the selection back.
 		window.setTimeout(() => this.select(parent), 0);
 	}
@@ -749,11 +786,38 @@ export default class CanvasArbor extends Plugin {
 			node,
 			window.setTimeout(() => {
 				this.fitTimers.delete(node);
-				if (!this.fit(node, view.state.doc.toString())) return;
-				const parent = parentOf(node);
-				if (this.settings.autoLayout && (parent || outgoing(node).length)) this.layout(rootOf(node));
-				node.canvas.requestSave();
+				// An editor that has been closed since no longer says what the node shows.
+				const text = node.child?.editor?.cm === view ? view.state.doc.toString() : node.text;
+				this.refit(node, text);
 			}, 120),
+		);
+	}
+
+	/** Fit a node and, when its size changed, lay its map out again. */
+	private refit(node: CanvasNode, text = node.text) {
+		if (!node.canvas.nodes.has(node.id) || !this.fit(node, text)) return;
+		if (this.settings.autoLayout && (parentOf(node) || outgoing(node).length)) this.layout(rootOf(node));
+		node.canvas.requestSave();
+	}
+
+	/** What has been typed in a node so far: Canvas writes it to the node only after a pause or when the editor closes. */
+	private typedText(node: CanvasNode): string | undefined {
+		return node.child?.editor?.cm?.state.doc.toString() ?? node.text;
+	}
+
+	/**
+	 * Fit a node again once the editor it was just typed in has closed and its text is rendered: a
+	 * safety net for a size that could not be read at the moment the key was pressed.
+	 */
+	private fitLater(node: CanvasNode) {
+		if (!this.settings.autoSize) return;
+		window.clearTimeout(this.fitTimers.get(node));
+		this.fitTimers.set(
+			node,
+			window.setTimeout(() => {
+				this.fitTimers.delete(node);
+				if (!node.isEditing) this.refit(node);
+			}, 250),
 		);
 	}
 
@@ -890,11 +954,13 @@ export default class CanvasArbor extends Plugin {
 
 	add(from: CanvasNode, action: Action) {
 		const canvas = from.canvas;
+		const typed = this.typedText(from);
 		if (from.isEditing) from.blur();
 		// A new child of a collapsed branch would be born hidden.
 		if (action === "child" && hooks.collapsed(from)) this.expand(from);
 		const parent = action === "child" ? from : parentOf(from);
-		if (this.settings.autoSize) this.fit(from);
+		if (this.settings.autoSize) this.fit(from, typed);
+		this.fitLater(from);
 
 		const size = (this.settings.autoSize && this.measure(canvas, "")) || { ...canvas.config.defaultTextNodeDimensions };
 		// Which way the new node goes from its parent: a sibling follows `from`, a child its parent's branch.
@@ -984,7 +1050,33 @@ export default class CanvasArbor extends Plugin {
 
 	/** A node's size in the layout frame (see layout.ts): across the page for a downward map. */
 	private sizer(down: boolean): (n: CanvasNode) => NodeSize {
-		return down ? (n) => ({ su: n.height, sv: n.width, pre: 0, lead: labelSpace(n) }) : (n) => ({ su: n.width, sv: n.height, pre: labelSpace(n), lead: 0 });
+		// Extra distance from a parent to its children, so the widest label on their arrows fits in between.
+		const rooms = new Map<CanvasNode, number>();
+		const room = (n: CanvasNode): number => {
+			const parent = parentOf(n);
+			if (!parent) return 0;
+			let r = rooms.get(parent);
+			if (r === undefined) {
+				r = 0;
+				for (const k of outgoing(parent, true)) r = Math.max(r, this.labelRoom(branchEdgeBetween(parent, k), down));
+				rooms.set(parent, r);
+			}
+			return r;
+		};
+		return down
+			? (n) => ({ su: n.height, sv: n.width, pre: 0, lead: labelSpace(n) + room(n) })
+			: (n) => ({ su: n.width, sv: n.height, pre: labelSpace(n), lead: room(n) });
+	}
+
+	/** How much longer than the normal gap an arrow has to be for its label to fit, with some air on both sides. */
+	private labelRoom(edge: CanvasEdge | undefined, down: boolean): number {
+		const el = edge?.labelElement?.textareaEl ?? edge?.labelElement?.wrapperEl;
+		if (!el) return 0;
+		const size = down ? el.offsetHeight : el.offsetWidth;
+		if (!size) return 0;
+		// Canvas scales labels up as it zooms out, to keep them readable: go back to their size at 100%.
+		const zoom = parseFloat(getComputedStyle(el).getPropertyValue("--zoom-multiplier")) || 1;
+		return Math.max(0, Math.ceil(size / zoom + LABEL_AIR * 2 - this.settings.hGap));
 	}
 
 	private shapeOptions(down: boolean) {

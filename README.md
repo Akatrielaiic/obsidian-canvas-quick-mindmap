@@ -30,7 +30,8 @@ nothing new to learn, nothing locked in.
   still nudge the card, as Canvas does.
 - **Write on arrows from the keyboard.** On the way to a parent or child,
   Shift+arrow stops on the arrow that joins the two nodes. **Shift+Enter** opens its
-  label, **Esc** leaves it with the arrow still selected.
+  label, **Esc** leaves it with the arrow still selected. The map makes room
+  for the label: the children move away until it fits between the nodes.
 - **Collapse branches.** The chevron button on a selected node hides everything
   below it; a badge shows how many nodes are hidden, click it to open the branch
   again. The map closes the gap. Hidden nodes stay in the `.canvas` file.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+
+- **Arrows make room for their labels.** While you write on a branch arrow, the map moves the children away from their parent until the label fits between them (all the siblings together, so they stay aligned), and closes the gap again when the label is removed. Needs *Auto layout*; Tidy does the same.
+- Fixed: a node could keep its old size after Tab or Enter moved on to a new one, until the next tidy. The node is now fitted from what was typed in its editor, and checked once more when the editor has closed.
+
 ## 0.3.1
 
 - **Shift+Enter opens the selection for writing**, a node or an arrow's label. Plain Enter on a selected node or arrow no longer does (while typing it still adds a node).
