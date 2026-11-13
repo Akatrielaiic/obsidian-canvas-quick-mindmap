@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0: Canvas Arbor
+
+First release under the new name and plugin id `canvas-arbor`, based on Canvas Quick Mindmap 0.1.1 by RainaJIA716.
 
 - **Three map structures: right, both sides, downward.** Read from the map (branches left of the root, or root arrows leaving from below), nothing stored. Left-half branches grow leftward with left-to-right arrows; downward maps use bottom-to-top arrows and lay siblings out in rows.
 - **Automatic balancing.** When the root reaches *Two sides from this many branches* (5 by default) the map spreads over both sides once, clockwise; new root branches go to the shorter side; sides are sticky. Commands: *Balance map on both sides*, *Map grows to the right*, *Map grows downward*.

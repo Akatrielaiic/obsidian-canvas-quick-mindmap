@@ -1,10 +1,14 @@
-# Canvas Quick Mindmap
+# Canvas Arbor
 
-![Canvas Quick Mindmap: keyboard shortcuts, + buttons, search and tidy on a canvas](docs/hero.svg)
+Mind maps on Obsidian Canvas, from the keyboard. Based on
+[Canvas Quick Mindmap](https://github.com/RainaJIA716/obsidian-canvas-quick-mindmap)
+by RainaJIA716, with three map structures (right, both sides, downward),
+balanced and compact layout, hand-drawn arrows kept as links and routed around
+cards, and several fixes.
 
 Obsidian Canvas is a great place to think, but building a mind map in it is slow:
 create a card, drag it into place, drag an edge from one card to the other, resize,
-repeat. Canvas Quick Mindmap turns that into typing. Press **Enter** and the next
+repeat. Canvas Arbor turns that into typing. Press **Enter** and the next
 idea appears to the right, already connected and ready for text. Press **Tab** and
 it appears below, on the same level. The canvas stays a normal `.canvas` file —
 nothing new to learn, nothing locked in.
@@ -108,9 +112,14 @@ choosing characters.
 
 ## Install
 
-Search for **Canvas Quick Mindmap** in Settings → Community plugins, or copy
-`main.js`, `manifest.json` and `styles.css` from the latest release into
-`<vault>/.obsidian/plugins/canvas-quick-mindmap/`.
+Canvas Arbor is not in the Community plugins directory. Install it with
+[BRAT](https://github.com/TfTHacker/obsidian42-brat) (*Add beta plugin*, then
+this repository), which also keeps it up to date, or copy `main.js`,
+`manifest.json` and `styles.css` from the latest release into
+`<vault>/.obsidian/plugins/canvas-arbor/`.
+
+It has its own plugin id, so it can sit next to Canvas Quick Mindmap; enable
+only one of the two.
 
 ## 中文说明
 
@@ -119,6 +128,8 @@ Search for **Canvas Quick Mindmap** in Settings → Community plugins, or copy
 右侧工具栏一键「整理导图」；节点大小跟随文字；**⌘F** 搜索画布；图片节点一键复制；
 粘贴进画布的图片按画布名重命名。
 
-## License
+## Credits and license
 
-MIT
+Canvas Arbor started as a fork of
+[Canvas Quick Mindmap](https://github.com/RainaJIA716/obsidian-canvas-quick-mindmap)
+by RainaJIA716. MIT, see [LICENSE](LICENSE).

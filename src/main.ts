@@ -1437,7 +1437,7 @@ export default class CanvasQuickMindmap extends Plugin {
 		try {
 			await this.app.fileManager.renameFile(file, target);
 		} catch (e) {
-			console.error("[canvas-quick-mindmap]", e);
+			console.error("[canvas-arbor]", e);
 			new Notice(`${s.renameFailed}: ${file.name}`);
 			return;
 		}
@@ -1502,7 +1502,7 @@ export default class CanvasQuickMindmap extends Plugin {
 			await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
 			new Notice(s.copied);
 		} catch (e) {
-			console.error("[canvas-quick-mindmap] copy failed", e);
+			console.error("[canvas-arbor] copy failed", e);
 			new Notice(s.copyFailed);
 		}
 	}
@@ -1556,7 +1556,7 @@ export default class CanvasQuickMindmap extends Plugin {
 			try {
 				decorate(this);
 			} catch (e) {
-				console.error("[canvas-quick-mindmap]", e);
+				console.error("[canvas-arbor]", e);
 			}
 			return result;
 		};

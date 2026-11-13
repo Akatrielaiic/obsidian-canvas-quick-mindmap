@@ -1,4 +1,4 @@
-# Canvas Quick Mindmap
+# Canvas Arbor（基于 Canvas Quick Mindmap）
 
 把 Obsidian 画布当思维导图用：选中或正在编辑一个文本节点时——
 

@@ -1,10 +1,10 @@
 {
-	"id": "canvas-quick-mindmap",
-	"name": "Canvas Quick Mindmap",
-	"version": "0.1.1",
+	"id": "canvas-arbor",
+	"name": "Canvas Arbor",
+	"version": "0.2.0",
 	"minAppVersion": "1.8.7",
-	"description": "Keyboard mind mapping and brainstorming on Canvas: Enter/Tab add child and sibling nodes, auto layout tree, tidy edges, nodes resize to fit text, search/find, copy and rename pasted images.",
-	"author": "RainaJIA716",
+	"description": "Build mind maps on Canvas from the keyboard: Enter and Tab add nodes, maps grow right, on both sides or downward, nodes fit their text, links route around cards.",
+	"author": "Akatrielaiic",
 	"isDesktopOnly": false,
-	"authorUrl": "https://github.com/RainaJIA716"
+	"authorUrl": "https://github.com/Akatrielaiic"
 }
