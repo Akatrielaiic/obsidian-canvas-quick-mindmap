@@ -20,7 +20,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - name: Check the tag matches the manifest
@@ -33,6 +33,8 @@ jobs:
           fi
 
       - run: npm ci
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
 
       - uses: actions/attest-build-provenance@v2

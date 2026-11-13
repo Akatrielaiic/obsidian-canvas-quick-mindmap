@@ -1,9 +1,9 @@
 {
 	"id": "canvas-arbor",
 	"name": "Canvas Arbor",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"minAppVersion": "1.8.7",
-	"description": "Build mind maps on Canvas from the keyboard: Enter and Tab add nodes, maps grow right, on both sides or downward, nodes fit their text, links route around cards.",
+	"description": "Build mind maps on Canvas from the keyboard: Enter and Tab add nodes, arrows move between them, branches collapse, maps grow right, on both sides or downward, nodes fit their text.",
 	"author": "Akatrielaiic",
 	"isDesktopOnly": false,
 	"authorUrl": "https://github.com/Akatrielaiic"

@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.0
+
+New:
+
+- **Arrow keys move between nodes.** With a node selected: toward the root for the parent, away from it for the nearest child, across for the previous or next node on the same level (a sibling, or the neighbouring branch's node). Follows the map's structure, so in a downward map Down is the child. Setting *Arrow keys move between nodes* (on by default) gives the keys back to Canvas.
+- **Alt+arrow reorders siblings.** Alt+Up / Alt+Down (Alt+Left / Alt+Right in a downward map) trade the node's place with its neighbour and lay the map out again. Also as commands: *Move node before its previous sibling*, *Move node after its next sibling*.
+- **Collapse and expand branches.** A button on the selected node (or the *Collapse or expand branch* command) hides everything below it; a badge shows how many nodes are hidden, and a click on it opens the branch again. Layout closes the gap. The nodes stay in the `.canvas` file, only hidden, so nothing is lost without the plugin; which branches are collapsed is kept in the plugin's data. Searching opens the branch a result is in. Command: *Expand all branches*.
+- **New nodes take the branch's colour** (setting, on by default): the node's colour comes from the node it was added from, the arrow's from that node's arrow.
+- **Markdown lists.** *Copy map as Markdown list* puts the selected branch (or every map) on the clipboard as a nested list; *Paste Markdown list as map* turns a nested list, with or without headings, into branches of the selected node or into new maps.
+
+Faster:
+
+- **Layout on outlines.** Each subtree keeps the outline of its top and bottom edge instead of the list of all its rectangles, so placing a sibling is one sweep rather than a comparison of every pair. Same positions as before (checked against the old algorithm on random trees); the layout pass for a 5,000-node map takes under 10 ms.
+- **Measured sizes are remembered** by text and maximum width, until the theme, the fonts or the settings change. Tidying a canvas no longer measures every unchanged node again.
+- Typing in an ordinary note no longer scans the open canvases for the node being edited.
+- Tidy routes links once, not once per tree and again for the whole canvas.
+
+Fixed:
+
+- Tidy (command and toolbar button) no longer changes a read-only canvas.
+- The selection menu is patched with `monkey-around`, so turning the plugin off removes its patch even when another plugin patched the same menu later.
+- Search: Enter pressed right after typing walks the new results, not the previous ones.
+- Timers still waiting to resize a node are cancelled when the plugin unloads.
+
+Under the hood: the source is split into modules, with unit tests (`npm test`) for layout, tree reading, link renaming and Markdown lists; ESLint with `eslint-plugin-obsidianmd` (`npm run lint`); TypeScript `strict`; CI on every push and pull request. `main.js` is no longer committed: releases build it. CSS classes are now prefixed `arbor-` (was `cqm-`), in case a snippet of yours targets them.
+
 ## 0.2.0: Canvas Arbor
 
 First release under the new name and plugin id `canvas-arbor`, based on Canvas Quick Mindmap 0.1.1 by RainaJIA716.

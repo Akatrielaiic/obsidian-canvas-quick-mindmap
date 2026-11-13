@@ -1,19 +1,26 @@
 {
   "name": "canvas-arbor",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Keyboard mind mapping and brainstorming on Canvas: Enter/Tab add child and sibling nodes, auto layout tree, tidy edges, nodes resize to fit text, search/find, copy and rename pasted images.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+    "build": "tsc --noEmit && node esbuild.config.mjs production",
+    "test": "vitest run",
+    "lint": "eslint ."
   },
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "esbuild": "^0.20.0",
-    "obsidian": "latest",
-    "typescript": "^5.4.0",
     "@codemirror/state": "^6.4.0",
-    "@codemirror/view": "^6.26.0"
+    "@codemirror/view": "^6.26.0",
+    "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-obsidianmd": "^0.5.1",
+    "monkey-around": "^3.0.0",
+    "obsidian": "^1.14.4",
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
   }
 }

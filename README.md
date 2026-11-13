@@ -20,6 +20,12 @@ nothing new to learn, nothing locked in.
   placed and opened for typing.
 - **Keyboard on a selected node.** **Enter** edits it (cursor at the end), **Tab**
   adds a child.
+- **Move around with the arrows.** With a node selected, the arrow keys go to
+  its parent, its nearest child, or the previous / next node on the same level.
+  **Alt+arrow** moves the node before or after its sibling.
+- **Collapse branches.** The chevron button on a selected node hides everything
+  below it; a badge shows how many nodes are hidden, click it to open the branch
+  again. The map closes the gap. Hidden nodes stay in the `.canvas` file.
 - **+ buttons on the node.** Select a node and two round **+** buttons appear: right
   for a child, below for a sibling. They work on phones and tablets too.
 - **Automatic layout, three structures.** Each map grows to the right, on both
@@ -43,6 +49,12 @@ nothing new to learn, nothing locked in.
   content of embedded notes. Matches are highlighted, the rest dimmed;
   **Enter / Shift+Enter** jump between them, **Esc** closes and leaves the
   result selected so Enter edits it.
+- **Branch colours.** A new node takes the colour of the node it was added
+  from, so a coloured branch stays coloured as it grows.
+- **Markdown lists in and out.** *Copy map as Markdown list* puts the selected
+  branch (or every map) on the clipboard as a nested list; *Paste Markdown list
+  as map* turns a nested list, with or without headings, into branches of the
+  selected node, or into new maps when nothing is selected.
 - **Copy image nodes.** Select an image and click the copy button in its corner
   to put the full-size picture on the clipboard (WebP, GIF, SVG and others are
   converted to PNG).
@@ -59,11 +71,16 @@ nothing new to learn, nothing locked in.
 | Tab | New sibling node | New child node |
 | Shift+Tab | Select the parent node | Select the parent node |
 | Shift+Enter | Line break | — |
+| Arrow keys | Move the cursor | Go to the parent, child or neighbouring node |
+| Alt+Up / Alt+Down | — | Move the node before / after its sibling |
 | Cmd/Ctrl+F | Search the canvas | Search the canvas |
 
 With **Tab adds a child, Enter a sibling** turned on, Enter and Tab swap
 roles while typing (Tab: new child, Enter: new sibling), as in most mind map
 apps.
+
+In a downward map the reordering keys are Alt+Left / Alt+Right. Collapsing has
+no key of its own: give *Collapse or expand branch* a hotkey if you want one.
 
 Enter is never taken while an input method (Chinese, Japanese…) is still
 choosing characters.
@@ -81,6 +98,7 @@ choosing characters.
   manual positions and place new nodes in the nearest free spot).
 - **Enter adds a node while typing** — off keeps Enter as a line break.
 - **Tab adds a child, Enter a sibling** — swap the two keys while typing.
+- **Arrow keys move between nodes** — off leaves the arrow keys to Canvas.
 - **Compact layout** — branches use each other's free space (off: each branch
   takes a full-height band).
 - **Two sides from this many branches** — when to balance a one-sided map
@@ -97,6 +115,7 @@ choosing characters.
   on-screen keyboard's Enter stays a line break).
 - **Horizontal / vertical gap** — spacing of the tree. Below 160 px horizontal,
   Obsidian's curved edges start to loop back.
+- **New nodes take the branch's colour**.
 - **Fit nodes to their text** and **maximum node width**.
 - **Rename attachments pasted into a canvas**.
 
@@ -106,6 +125,8 @@ choosing characters.
   is not officially documented, and is tested on Obsidian 1.14.
 - Only nodes that are part of a mind map (have an edge) resize while you type,
   so ordinary cards on a canvas are left alone.
+- Collapsed branches are remembered in the plugin's data, per canvas file. If
+  that data is lost (or the plugin is off) the branches are simply all open.
 - Renaming only touches files that the open canvas actually uses within a few
   seconds of them appearing, so files created by sync or other plugins are left
   alone.
@@ -121,12 +142,19 @@ this repository), which also keeps it up to date, or copy `main.js`,
 It has its own plugin id, so it can sit next to Canvas Quick Mindmap; enable
 only one of the two.
 
+## Development
+
+`npm ci`, then `npm run dev` (watch), `npm run build`, `npm test`, `npm run lint`.
+The layout (`src/layout.ts`), tree reading (`src/tree.ts`), link renaming
+(`src/text.ts`) and Markdown lists (`src/outline.ts`) have unit tests in `tests/`.
+
 ## 中文说明
 
 把 Obsidian 画布当思维导图用：输入时 **Enter** 新建子节点、**Tab** 新建同级节点，
 自动连线、自动排版；选中节点按 **Enter** 编辑；节点旁边的 **+** 按钮手机上也能用；
 右侧工具栏一键「整理导图」；节点大小跟随文字；**⌘F** 搜索画布；图片节点一键复制；
-粘贴进画布的图片按画布名重命名。
+粘贴进画布的图片按画布名重命名。选中节点后方向键在节点间移动，**Alt+方向键**调整同级顺序；
+分支可以折叠 / 展开；新节点沿用分支颜色；导图可以复制为 Markdown 列表，列表也可以粘贴成导图。
 
 ## Credits and license
 
