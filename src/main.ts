@@ -307,12 +307,20 @@ export default class CanvasArbor extends Plugin {
 		if (!action || !this.keyIsForCanvas(evt, canvas)) return;
 
 		const node = this.singleSelected(canvas);
-		if (!node || node.isEditing) return;
+		if (!node || this.isTyping(node)) return;
 		evt.preventDefault();
 		evt.stopPropagation();
 		if (action === "edit") this.edit(node);
 		else if (action === "parent") this.selectParent(node);
 		else this.add(node, action);
+	}
+
+	/**
+	 * Whether the cursor is in the node's text. After Esc a node still counts as being edited for
+	 * Canvas, with its editor open but without focus: keys pressed then are for the canvas.
+	 */
+	private isTyping(node: CanvasNode): boolean {
+		return node.isEditing && (node.child?.editor?.cm?.hasFocus ?? false);
 	}
 
 	/** A key pressed on the canvas itself: not in a text field, a menu or a dialog. */
@@ -333,8 +341,9 @@ export default class CanvasArbor extends Plugin {
 		if (!this.settings.arrowKeys || !ARROWS.has(evt.key) || evt.ctrlKey || evt.metaKey || evt.shiftKey === evt.altKey) return false;
 		if (evt.isComposing || !this.keyIsForCanvas(evt, canvas)) return false;
 		const node = this.singleSelected(canvas);
-		if (!node || node.isEditing) return false;
+		if (!node || this.isTyping(node)) return false;
 		if (!parentOf(node) && !outgoing(node).length) return false;
+		if (node.isEditing) node.blur();
 		if (evt.altKey) this.reorderByKey(node, evt.key as ArrowKey);
 		else this.go(node, evt.key as ArrowKey);
 		return true;
@@ -867,9 +876,9 @@ export default class CanvasArbor extends Plugin {
 
 		if (parent && this.settings.autoLayout) {
 			const root = rootOf(parent);
-			const tree = this.layout(root, { insert: { node, after: action === "sibling" ? from : null } });
-			// A new branch of the central node: from the threshold on, the map is kept even on both sides.
-			if (parent === root && this.balances(root, tree)) this.balance(root, tree);
+			const after = action === "sibling" ? from : null;
+			if (parent === root) this.addBranch(root, node, after);
+			else this.layout(root, { insert: { node, after } });
 		} else {
 			this.placeFreely(node, from, action, dir);
 		}
@@ -1009,6 +1018,38 @@ export default class CanvasArbor extends Plugin {
 		return span(shapeOf(k, kidsOf(k), kidsOf, this.sizer(down), this.shapeOptions(down), new Map()));
 	}
 
+	/**
+	 * Lay a map out with a new branch of its central node. Branches run clockwise: down the right
+	 * side, then up the left side. The new one comes right after the sibling it was added from, or
+	 * last; on the left that is above, so the newest branch of a balanced map sits top left.
+	 */
+	private addBranch(root: CanvasNode, node: CanvasNode, after: CanvasNode | null) {
+		const tree = buildTree(root);
+		if (structureOf(root, tree) === "down") {
+			this.layout(root, { insert: { node, after } });
+			return;
+		}
+		const onLeft = (k: CanvasNode) => center(k) < center(root);
+		const balanced = this.balances(root, tree);
+		const order = clockwise(root, (tree.get(root) ?? []).filter((k) => k !== node));
+		const at = after ? order.indexOf(after) : -1;
+		if (at >= 0) order.splice(at + 1, 0, node);
+		else if (balanced || onLeft(node)) order.push(node);
+		else order.splice(order.filter((k) => !onLeft(k)).length, 0, node); // last on the right side
+		if (balanced) {
+			this.balance(root, tree, true, order);
+			return;
+		}
+		// Below the threshold every branch keeps its side.
+		this.layout(root, {
+			tree,
+			groups: [
+				{ dir: "right", kids: order.filter((k) => !onLeft(k)) },
+				{ dir: "left", kids: order.filter(onLeft).reverse() },
+			],
+		});
+	}
+
 	/** Whether a map is one this plugin keeps balanced: enough central branches, and not a downward map. */
 	private balances(root: CanvasNode, tree: Tree): boolean {
 		const n = this.settings.balanceFrom;
@@ -1016,11 +1057,11 @@ export default class CanvasArbor extends Plugin {
 	}
 
 	/**
-	 * Spread the root branches over both sides, keeping their clockwise order and evening out the two
-	 * heights. When two splits are as even, the right side gets the extra branch.
+	 * Spread the root branches over both sides, keeping their clockwise order (down the right side,
+	 * then up the left one, so the last branch is top left) and evening out the two heights. When two
+	 * splits are as even, the right side gets the extra branch.
 	 */
-	balance(root: CanvasNode, tree = buildTree(root), route = true) {
-		const order = clockwise(root, tree.get(root) ?? []);
+	balance(root: CanvasNode, tree = buildTree(root), route = true, order = clockwise(root, tree.get(root) ?? [])) {
 		if (order.length < 2) {
 			this.layout(root, { tree, route });
 			return;

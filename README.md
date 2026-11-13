@@ -35,9 +35,10 @@ nothing new to learn, nothing locked in.
   mean both sides, arrows leaving it from below mean downward. Branches fit
   into each other's free space, so nothing overlaps and little space is wasted.
 - **Balanced maps.** From 5 branches on the central node (adjustable), the map
-  keeps them even on both sides, in MindNode's clockwise order: whenever you
-  add a branch to the central node, and when you tidy. With an odd count the
-  right side gets the extra one. Commands: *Balance map on both sides*, *Map grows to the right*,
+  keeps them even on both sides, whenever you add a branch to the central node
+  and when you tidy. Branches run clockwise, as in MindNode: down the right
+  side, then up the left one, so the newest branch sits top left and the
+  others keep their order. With an odd count the right side gets the extra one. Commands: *Balance map on both sides*, *Map grows to the right*,
   *Map grows downward* (selected map, or every map when nothing is selected).
 - **Tidy button.** One click in the canvas toolbar re-lays out every tree on the
   canvas, points branch arrows the way their branch grows, pulls overlapping
