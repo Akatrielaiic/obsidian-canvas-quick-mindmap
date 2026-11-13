@@ -1,10 +1,11 @@
 # Canvas Arbor
 
 Mind maps on Obsidian Canvas, from the keyboard: Enter and Tab add nodes,
-Shift+arrow moves between them, branches collapse, and the map lays itself out
-in one of three structures (right, both sides, downward), balanced and compact.
-Hand-drawn arrows are kept as links and routed around cards, and maps go to and
-from Markdown lists.
+Shift+arrow moves between nodes and the arrows that join them, Shift+Enter
+writes on either. Branches collapse, and the map lays itself out in one of
+three structures (right, both sides, downward), balanced, compact and with room
+for the arrows' labels. Hand-drawn arrows are kept as links and routed around
+cards, and maps go to and from Markdown lists.
 
 Based on
 [Canvas Quick Mindmap](https://github.com/RainaJIA716/obsidian-canvas-quick-mindmap)
@@ -76,19 +77,16 @@ nothing new to learn, nothing locked in.
 
 ## Keys
 
-| Key | While typing in a node | Node selected |
-|---|---|---|
-| Enter | New child node | — |
-| Tab | New sibling node | New child node |
-| Shift+Tab | Select the parent node | Select the parent node |
-| Shift+Enter | Line break | Edit the node |
-| Shift+arrow | Select text | Go to the parent, child or neighbouring node, stopping on the arrow in between |
-| Alt+Up / Alt+Down | — | Move the node before / after its sibling |
-| Cmd/Ctrl+F | Search the canvas | Search the canvas |
-
-With an arrow selected, **Shift+Enter** writes its label, **Esc** stops writing and
-keeps the arrow selected, and **Shift+arrow** goes on to the node at either end
-or to the next branch's arrow.
+| Key | While typing in a node | Node selected | Arrow selected |
+|---|---|---|---|
+| Enter | New child node | — | — |
+| Tab | New sibling node | New child node | — |
+| Shift+Tab | Select the parent node | Select the parent node | — |
+| Shift+Enter | Line break | Edit the node | Write the label |
+| Shift+arrow | Select text | Go to the parent, child or neighbouring node, stopping on the arrow in between | Go to the node at either end, or to the next branch's arrow |
+| Alt+Up / Alt+Down | — | Move the node before / after its sibling | — |
+| Esc | Stop typing, node stays selected | — | Stop writing the label, arrow stays selected |
+| Cmd/Ctrl+F | Search the canvas | Search the canvas | Search the canvas |
 
 With **Tab adds a child, Enter a sibling** turned on, Enter and Tab swap
 roles while typing (Tab: new child, Enter: new sibling), as in most mind map
@@ -170,7 +168,7 @@ The layout (`src/layout.ts`), tree reading (`src/tree.ts`), link renaming
 自动连线、自动排版；选中节点按 **Shift+Enter** 编辑；节点旁边的 **+** 按钮手机上也能用；
 右侧工具栏一键「整理导图」；节点大小跟随文字；**⌘F** 搜索画布；图片节点一键复制；
 粘贴进画布的图片按画布名重命名。选中节点后**Shift+方向键**在节点间移动，**Alt+方向键**调整同级顺序；
-Shift+方向键会在连线上停一下，此时按 **Shift+Enter** 写连线标签，**Esc** 退出；
+Shift+方向键会在连线上停一下，此时按 **Shift+Enter** 写连线标签，**Esc** 退出，导图会自动给标签留出位置；
 分支可以折叠 / 展开；新节点沿用分支颜色；导图可以复制为 Markdown 列表，列表也可以粘贴成导图。
 
 ## Credits and license
