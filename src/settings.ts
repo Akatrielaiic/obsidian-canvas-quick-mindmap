@@ -13,6 +13,7 @@ export interface Settings {
 	tabAddsChild: boolean;
 	mobileKeys: boolean;
 	arrowKeys: boolean;
+	arrowEdges: boolean;
 	linkArrows: boolean;
 	routeLinks: boolean;
 	compact: boolean;
@@ -33,6 +34,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	tabAddsChild: false,
 	mobileKeys: false,
 	arrowKeys: true,
+	arrowEdges: true,
 	linkArrows: true,
 	routeLinks: true,
 	compact: true,
@@ -46,7 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	folds: {},
 };
 
-type ToggleKey = "autoLayout" | "enterInEdit" | "tabAddsChild" | "mobileKeys" | "arrowKeys" | "linkArrows" | "routeLinks" | "compact" | "inheritColor" | "autoSize" | "renamePasted";
+type ToggleKey = "autoLayout" | "enterInEdit" | "tabAddsChild" | "mobileKeys" | "arrowKeys" | "arrowEdges" | "linkArrows" | "routeLinks" | "compact" | "inheritColor" | "autoSize" | "renamePasted";
 type SliderKey = "hGap" | "vGap" | "maxWidth" | "balanceFrom";
 type SettingSpec =
 	| { kind: "toggle"; key: ToggleKey; name: string; desc: string }
@@ -60,6 +62,7 @@ function settingSpecs(): SettingSpec[] {
 		{ kind: "toggle", key: "tabAddsChild", name: s.tabAddsChild, desc: s.tabAddsChildDesc },
 		{ kind: "toggle", key: "mobileKeys", name: s.mobileKeys, desc: s.mobileKeysDesc },
 		{ kind: "toggle", key: "arrowKeys", name: s.arrowKeys, desc: s.arrowKeysDesc },
+		{ kind: "toggle", key: "arrowEdges", name: s.arrowEdges, desc: s.arrowEdgesDesc },
 		{ kind: "slider", key: "hGap", name: s.hGap, desc: s.hGapDesc, min: 80, max: 400, step: 10 },
 		{ kind: "slider", key: "vGap", name: s.vGap, desc: s.vGapDesc, min: 0, max: 200, step: 10 },
 		{ kind: "toggle", key: "compact", name: s.compact, desc: s.compactDesc },

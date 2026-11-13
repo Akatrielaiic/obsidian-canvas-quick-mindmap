@@ -24,6 +24,9 @@ nothing new to learn, nothing locked in.
   to its parent, its nearest child, or the previous / next node on the same
   level. **Alt+arrow** moves the node before or after its sibling. Plain arrows
   still nudge the card, as Canvas does.
+- **Write on arrows from the keyboard.** On the way to a parent or child,
+  Shift+arrow stops on the arrow that joins the two nodes. **Enter** opens its
+  label, **Esc** leaves it with the arrow still selected.
 - **Collapse branches.** The chevron button on a selected node hides everything
   below it; a badge shows how many nodes are hidden, click it to open the branch
   again. The map closes the gap. Hidden nodes stay in the `.canvas` file.
@@ -101,6 +104,7 @@ choosing characters.
 - **Enter adds a node while typing** — off keeps Enter as a line break.
 - **Tab adds a child, Enter a sibling** — swap the two keys while typing.
 - **Shift+arrow moves between nodes** — off leaves Shift+arrow to Canvas.
+- **Shift+arrow stops on arrows** — off goes straight from node to node.
 - **Compact layout** — branches use each other's free space (off: each branch
   takes a full-height band).
 - **Balance on both sides from this many branches** — from this count on, the

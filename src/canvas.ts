@@ -48,7 +48,9 @@ export interface CanvasEdge {
 	to: { node: CanvasNode; side: string };
 	lineGroupEl?: Element;
 	lineEndGroupEl?: Element;
-	labelElement?: { wrapperEl?: HTMLElement };
+	labelElement?: { wrapperEl?: HTMLElement; textareaEl?: HTMLElement; isEditing?: boolean; blur?(): void } | null;
+	editLabel?(): void;
+	getBBox?(): BBox;
 	getData(): { id: string; fromSide?: string; toSide?: string; color?: string };
 }
 
@@ -81,7 +83,7 @@ export interface Canvas {
 		save: boolean;
 	}): CanvasNode;
 	importData(data: { nodes: unknown[]; edges: unknown[] }): void;
-	selectOnly(node: CanvasNode): void;
+	selectOnly(item: CanvasNode | CanvasEdge): void;
 	deselectAll?(): void;
 	requestSave(): void;
 	markDirty(node: CanvasNode): void;

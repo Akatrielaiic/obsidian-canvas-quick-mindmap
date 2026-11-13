@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Canvas, CanvasEdge, CanvasNode } from "../src/canvas";
-import { buildTree, forgetBranches, hooks, neighbour, parentOf, rootOf, structureOf } from "../src/tree";
+import { buildTree, forgetBranches, hooks, neighbour, neighbourOfEdge, neighbourVia, parentOf, rootOf, structureOf } from "../src/tree";
 
 /** Just enough of a canvas for the tree code. */
 function fake() {
@@ -114,5 +114,28 @@ describe("arrow keys", () => {
 		expect(neighbour(top, "ArrowDown")).toBe(x);
 		expect(neighbour(x, "ArrowRight")).toBe(y);
 		expect(neighbour(y, "ArrowUp")).toBe(top);
+	});
+
+	it("stops on the branch arrows", () => {
+		const { node, edge } = fake();
+		const root = node("root", 0, 0);
+		const r1 = node("r1", 300, -100);
+		const r2 = node("r2", 300, 100);
+		const l1 = node("l1", -300, 0);
+		const toR1 = edge(root, r1);
+		const toR2 = edge(root, r2);
+		const toL1 = edge(root, l1, "left", "right");
+		const link = edge(r1, r2, "bottom", "top");
+
+		expect(neighbourVia(root, "ArrowRight")).toBe(toR1);
+		expect(neighbourVia(r1, "ArrowLeft")).toBe(toR1);
+		expect(neighbourVia(r1, "ArrowDown")).toBe(r2);
+		expect(neighbourOfEdge(toR1, "ArrowRight")).toBe(r1);
+		expect(neighbourOfEdge(toR1, "ArrowLeft")).toBe(root);
+		expect(neighbourOfEdge(toR1, "ArrowDown")).toBe(toR2);
+		expect(neighbourOfEdge(toR2, "ArrowDown")).toBeNull();
+		expect(neighbourOfEdge(toL1, "ArrowLeft")).toBe(l1);
+		expect(neighbourOfEdge(toL1, "ArrowRight")).toBe(root);
+		expect(neighbourOfEdge(link, "ArrowDown")).toBeNull();
 	});
 });

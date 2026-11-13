@@ -269,3 +269,31 @@ export function neighbour(node: CanvasNode, key: ArrowKey): CanvasNode | null {
 	if (i < 0) return null;
 	return level[i + (key === "ArrowUp" || key === "ArrowLeft" ? -1 : 1)] ?? null;
 }
+
+/**
+ * The same walk with the branch arrows as stops on the way: from a node toward its parent or child
+ * the arrow between them comes first.
+ */
+export function neighbourVia(node: CanvasNode, key: ArrowKey): CanvasNode | CanvasEdge | null {
+	const target = neighbour(node, key);
+	if (!target) return null;
+	const parent = parentOf(node);
+	if (target === parent) return branchEdgeBetween(parent, node) ?? target;
+	if (parentOf(target) === node) return branchEdgeBetween(node, target) ?? target;
+	return target;
+}
+
+/** From a branch arrow: on to its child, back to its parent, across to the neighbouring node's arrow. */
+export function neighbourOfEdge(edge: CanvasEdge, key: ArrowKey): CanvasNode | CanvasEdge | null {
+	const parent = edge.from.node;
+	const child = edge.to.node;
+	if (branchEdgeBetween(parent, child) !== edge) return null;
+	const root = rootOf(child);
+	const structure = structureOf(root, buildTree(root));
+	const dir: Dir = structure === "down" ? "down" : sideOf(child, root);
+	if (key === AWAY[dir]) return child;
+	if (key === BACK[dir]) return parent;
+	const other = neighbour(child, key);
+	const otherParent = other && parentOf(other);
+	return other && otherParent ? branchEdgeBetween(otherParent, other) ?? null : null;
+}

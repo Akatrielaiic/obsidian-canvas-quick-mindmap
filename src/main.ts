@@ -2,7 +2,7 @@ import { ItemView, KeymapContext, KeymapEventHandler, Notice, Platform, Plugin, 
 import { Prec } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { around } from "monkey-around";
-import type { BBox, Canvas, CanvasMenu, CanvasNode, CanvasView } from "./canvas";
+import type { BBox, Canvas, CanvasEdge, CanvasMenu, CanvasNode, CanvasView } from "./canvas";
 import { Side, SIDES, bboxOf, center, edgeCurve, inBox, labelSpace, linkReach, moveBy, overlaps, unionBox } from "./geometry";
 import { t } from "./i18n";
 import { NodeSize, Offset, positions, shapeOf, span } from "./layout";
@@ -25,6 +25,8 @@ import {
 	isBranchLook,
 	isGroup,
 	neighbour,
+	neighbourOfEdge,
+	neighbourVia,
 	outgoing,
 	parentOf,
 	readingOrder,
@@ -252,8 +254,29 @@ export default class CanvasArbor extends Plugin {
 	private selectedNode(canvas: Canvas): CanvasNode | null {
 		if (canvas.selection.size !== 1) return null;
 		const [node] = canvas.selection;
-		if (!node || !("getData" in node) || isGroup(node)) return null; // edges can be selected too
+		if (!node || "from" in node || !("getData" in node) || isGroup(node)) return null; // edges can be selected too
 		return node;
+	}
+
+	/** The arrow that is the whole selection, if it is one. */
+	private selectedEdge(canvas: Canvas): CanvasEdge | null {
+		if (canvas.readonly || canvas.selection.size !== 1) return null;
+		const [item] = canvas.selection as unknown as Set<CanvasNode | CanvasEdge>;
+		return item && "from" in item && "to" in item ? item : null;
+	}
+
+	/** Esc while writing an arrow's label: stop writing and keep the arrow selected, ready for Shift+arrow. */
+	private leaveLabel(evt: KeyboardEvent, canvas: Canvas): boolean {
+		const target = evt.target as HTMLElement | null;
+		if (!target?.closest || !canvas.wrapperEl.contains(target)) return false;
+		const label = target.closest(".canvas-path-label");
+		if (!label) return false;
+		const edge = [...canvas.edges.values()].find((e) => e.labelElement?.textareaEl === label);
+		if (!edge) return false;
+		edge.labelElement?.blur?.();
+		// After the current key event, in case Canvas clears the selection on Esc.
+		window.setTimeout(() => this.select(edge), 0);
+		return true;
 	}
 
 	private singleSelected(canvas: Canvas): CanvasNode | null {
@@ -281,7 +304,16 @@ export default class CanvasArbor extends Plugin {
 	}
 
 	private onWindowKeydown(evt: KeyboardEvent) {
-		if (evt.defaultPrevented || evt.isComposing || evt.key === "Process") return;
+		if (evt.isComposing || evt.key === "Process") return;
+		if (evt.key === "Escape" && !evt.ctrlKey && !evt.metaKey && !evt.altKey && !evt.shiftKey) {
+			const canvas = this.activeCanvas();
+			if (canvas && this.settings.arrowEdges && this.leaveLabel(evt, canvas)) {
+				evt.preventDefault();
+				evt.stopPropagation();
+			}
+			return;
+		}
+		if (evt.defaultPrevented) return;
 		if (isFindKey(evt)) {
 			const view = this.activeCanvasView();
 			if (!view) return;
@@ -306,6 +338,13 @@ export default class CanvasArbor extends Plugin {
 		const action: Action | "edit" | "parent" | null = back ? "parent" : evt.key === "Tab" ? "child" : evt.key === "Enter" ? "edit" : null;
 		if (!action || !this.keyIsForCanvas(evt, canvas)) return;
 
+		const edge = action === "edit" ? this.selectedEdge(canvas) : null;
+		if (edge?.editLabel) {
+			evt.preventDefault();
+			evt.stopPropagation();
+			edge.editLabel();
+			return;
+		}
 		const node = this.singleSelected(canvas);
 		if (!node || this.isTyping(node)) return;
 		evt.preventDefault();
@@ -340,6 +379,13 @@ export default class CanvasArbor extends Plugin {
 		// Shift moves between nodes, Alt reorders; plain arrows stay with Canvas, which nudges the card.
 		if (!this.settings.arrowKeys || !ARROWS.has(evt.key) || evt.ctrlKey || evt.metaKey || evt.shiftKey === evt.altKey) return false;
 		if (evt.isComposing || !this.keyIsForCanvas(evt, canvas)) return false;
+		const edge = this.selectedEdge(canvas);
+		if (edge) {
+			if (evt.altKey || !this.settings.arrowEdges) return false;
+			const target = neighbourOfEdge(edge, evt.key as ArrowKey);
+			if (target) this.select(target);
+			return true;
+		}
 		const node = this.singleSelected(canvas);
 		if (!node || this.isTyping(node)) return false;
 		if (!parentOf(node) && !outgoing(node).length) return false;
@@ -432,10 +478,11 @@ export default class CanvasArbor extends Plugin {
 		return null;
 	}
 
-	private select(node: CanvasNode) {
-		const canvas = node.canvas;
-		canvas.selectOnly(node);
-		canvas.panIntoView(node.getBBox());
+	private select(item: CanvasNode | CanvasEdge) {
+		const canvas = "from" in item ? item.from.node.canvas : item.canvas;
+		canvas.selectOnly(item);
+		const box = item.getBBox?.();
+		if (box) canvas.panIntoView(box);
 		canvas.wrapperEl.focus();
 	}
 
@@ -456,7 +503,7 @@ export default class CanvasArbor extends Plugin {
 	// ---------- Moving around and reordering ----------
 
 	private go(node: CanvasNode, key: ArrowKey) {
-		const target = neighbour(node, key);
+		const target = this.settings.arrowEdges ? neighbourVia(node, key) : neighbour(node, key);
 		if (target) this.select(target);
 	}
 
