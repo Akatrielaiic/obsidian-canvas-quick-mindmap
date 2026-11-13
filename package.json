@@ -1,7 +1,7 @@
 {
   "name": "canvas-arbor",
   "version": "0.3.0",
-  "description": "Keyboard mind mapping and brainstorming on Canvas: Enter/Tab add child and sibling nodes, auto layout tree, tidy edges, nodes resize to fit text, search/find, copy and rename pasted images.",
+  "description": "Build mind maps on Canvas from the keyboard: Enter and Tab add nodes, Shift+arrow moves between them, branches collapse and stay balanced, maps grow right, on both sides or downward, nodes fit their text.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",

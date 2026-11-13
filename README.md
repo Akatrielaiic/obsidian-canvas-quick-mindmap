@@ -1,10 +1,14 @@
 # Canvas Arbor
 
-Mind maps on Obsidian Canvas, from the keyboard. Based on
+Mind maps on Obsidian Canvas, from the keyboard: Enter and Tab add nodes,
+Shift+arrow moves between them, branches collapse, and the map lays itself out
+in one of three structures (right, both sides, downward), balanced and compact.
+Hand-drawn arrows are kept as links and routed around cards, and maps go to and
+from Markdown lists.
+
+Based on
 [Canvas Quick Mindmap](https://github.com/RainaJIA716/obsidian-canvas-quick-mindmap)
-by RainaJIA716, with three map structures (right, both sides, downward),
-balanced and compact layout, hand-drawn arrows kept as links and routed around
-cards, and several fixes.
+by RainaJIA716.
 
 Obsidian Canvas is a great place to think, but building a mind map in it is slow:
 create a card, drag it into place, drag an edge from one card to the other, resize,
@@ -41,8 +45,9 @@ nothing new to learn, nothing locked in.
   keeps them even on both sides, whenever you add a branch to the central node
   and when you tidy. Branches run clockwise, as in MindNode: down the right
   side, then up the left one, so the newest branch sits top left and the
-  others keep their order. With an odd count the right side gets the extra one. Commands: *Balance map on both sides*, *Map grows to the right*,
-  *Map grows downward* (selected map, or every map when nothing is selected).
+  others keep their order. With an odd count the right side gets the extra one.
+  Commands: *Balance map on both sides*, *Map grows to the right*, *Map grows
+  downward* (selected map, or every map when nothing is selected).
 - **Tidy button.** One click in the canvas toolbar re-lays out every tree on the
   canvas, points branch arrows the way their branch grows, pulls overlapping
   trees apart and moves loose cards out of the way. One undo restores everything.
@@ -76,9 +81,13 @@ nothing new to learn, nothing locked in.
 | Tab | New sibling node | New child node |
 | Shift+Tab | Select the parent node | Select the parent node |
 | Shift+Enter | Line break | — |
-| Shift+arrow | Select text | Go to the parent, child or neighbouring node |
+| Shift+arrow | Select text | Go to the parent, child or neighbouring node, stopping on the arrow in between |
 | Alt+Up / Alt+Down | — | Move the node before / after its sibling |
 | Cmd/Ctrl+F | Search the canvas | Search the canvas |
+
+With an arrow selected, **Enter** writes its label, **Esc** stops writing and
+keeps the arrow selected, and **Shift+arrow** goes on to the node at either end
+or to the next branch's arrow.
 
 With **Tab adds a child, Enter a sibling** turned on, Enter and Tab swap
 roles while typing (Tab: new child, Enter: new sibling), as in most mind map
@@ -128,7 +137,7 @@ choosing characters.
 ## Notes
 
 - Works on the canvas Obsidian already has; it uses Canvas's internal API, which
-  is not officially documented, and is tested on Obsidian 1.14.
+  is not officially documented, and is tested on Obsidian 1.15.
 - Only nodes that are part of a mind map (have an edge) resize while you type,
   so ordinary cards on a canvas are left alone.
 - Collapsed branches are remembered in the plugin's data, per canvas file. If
@@ -160,6 +169,7 @@ The layout (`src/layout.ts`), tree reading (`src/tree.ts`), link renaming
 自动连线、自动排版；选中节点按 **Enter** 编辑；节点旁边的 **+** 按钮手机上也能用；
 右侧工具栏一键「整理导图」；节点大小跟随文字；**⌘F** 搜索画布；图片节点一键复制；
 粘贴进画布的图片按画布名重命名。选中节点后**Shift+方向键**在节点间移动，**Alt+方向键**调整同级顺序；
+Shift+方向键会在连线上停一下，此时按 **Enter** 写连线标签，**Esc** 退出；
 分支可以折叠 / 展开；新节点沿用分支颜色；导图可以复制为 Markdown 列表，列表也可以粘贴成导图。
 
 ## Credits and license
