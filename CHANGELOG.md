@@ -4,11 +4,12 @@
 
 New:
 
-- **Arrow keys move between nodes.** With a node selected: toward the root for the parent, away from it for the nearest child, across for the previous or next node on the same level (a sibling, or the neighbouring branch's node). Follows the map's structure, so in a downward map Down is the child. Setting *Arrow keys move between nodes* (on by default) gives the keys back to Canvas.
+- **Shift+arrow moves between nodes.** With a node selected: toward the root for the parent, away from it for the nearest child, across for the previous or next node on the same level (a sibling, or the neighbouring branch's node). Follows the map's structure, so in a downward map Down is the child. Plain arrows still nudge the card. Setting *Shift+arrow moves between nodes* (on by default) gives the keys back to Canvas.
 - **Alt+arrow reorders siblings.** Alt+Up / Alt+Down (Alt+Left / Alt+Right in a downward map) trade the node's place with its neighbour and lay the map out again. Also as commands: *Move node before its previous sibling*, *Move node after its next sibling*.
 - **Collapse and expand branches.** A button on the selected node (or the *Collapse or expand branch* command) hides everything below it; a badge shows how many nodes are hidden, and a click on it opens the branch again. Layout closes the gap. The nodes stay in the `.canvas` file, only hidden, so nothing is lost without the plugin; which branches are collapsed is kept in the plugin's data. Searching opens the branch a result is in. Command: *Expand all branches*.
 - **New nodes take the branch's colour** (setting, on by default): the node's colour comes from the node it was added from, the arrow's from that node's arrow.
 - **Markdown lists.** *Copy map as Markdown list* puts the selected branch (or every map) on the clipboard as a nested list; *Paste Markdown list as map* turns a nested list, with or without headings, into branches of the selected node or into new maps.
+- **Maps stay balanced.** From *Balance on both sides from this many branches* on (5 by default), the central node's branches are evened out over both sides every time one is added and on every tidy, not just once when the threshold is reached. Tidy now balances existing one-sided maps too. With an odd count the right side gets the extra branch.
 
 Faster:
 

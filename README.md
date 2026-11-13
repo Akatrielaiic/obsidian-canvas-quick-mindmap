@@ -20,9 +20,10 @@ nothing new to learn, nothing locked in.
   placed and opened for typing.
 - **Keyboard on a selected node.** **Enter** edits it (cursor at the end), **Tab**
   adds a child.
-- **Move around with the arrows.** With a node selected, the arrow keys go to
-  its parent, its nearest child, or the previous / next node on the same level.
-  **Alt+arrow** moves the node before or after its sibling.
+- **Move around with Shift+arrow.** With a node selected, **Shift+arrow** goes
+  to its parent, its nearest child, or the previous / next node on the same
+  level. **Alt+arrow** moves the node before or after its sibling. Plain arrows
+  still nudge the card, as Canvas does.
 - **Collapse branches.** The chevron button on a selected node hides everything
   below it; a badge shows how many nodes are hidden, click it to open the branch
   again. The map closes the gap. Hidden nodes stay in the `.canvas` file.
@@ -33,10 +34,10 @@ nothing new to learn, nothing locked in.
   The structure is read from the map itself: branches left of the central node
   mean both sides, arrows leaving it from below mean downward. Branches fit
   into each other's free space, so nothing overlaps and little space is wasted.
-- **Balanced maps.** When the central node gets 5 branches (adjustable), the
-  map spreads them over both sides once, in MindNode's clockwise order. New
-  branches go to the shorter side; a branch you drag to the other side stays
-  there. Commands: *Balance map on both sides*, *Map grows to the right*,
+- **Balanced maps.** From 5 branches on the central node (adjustable), the map
+  keeps them even on both sides, in MindNode's clockwise order: whenever you
+  add a branch to the central node, and when you tidy. With an odd count the
+  right side gets the extra one. Commands: *Balance map on both sides*, *Map grows to the right*,
   *Map grows downward* (selected map, or every map when nothing is selected).
 - **Tidy button.** One click in the canvas toolbar re-lays out every tree on the
   canvas, points branch arrows the way their branch grows, pulls overlapping
@@ -71,7 +72,7 @@ nothing new to learn, nothing locked in.
 | Tab | New sibling node | New child node |
 | Shift+Tab | Select the parent node | Select the parent node |
 | Shift+Enter | Line break | — |
-| Arrow keys | Move the cursor | Go to the parent, child or neighbouring node |
+| Shift+arrow | Select text | Go to the parent, child or neighbouring node |
 | Alt+Up / Alt+Down | — | Move the node before / after its sibling |
 | Cmd/Ctrl+F | Search the canvas | Search the canvas |
 
@@ -98,11 +99,11 @@ choosing characters.
   manual positions and place new nodes in the nearest free spot).
 - **Enter adds a node while typing** — off keeps Enter as a line break.
 - **Tab adds a child, Enter a sibling** — swap the two keys while typing.
-- **Arrow keys move between nodes** — off leaves the arrow keys to Canvas.
+- **Shift+arrow moves between nodes** — off leaves Shift+arrow to Canvas.
 - **Compact layout** — branches use each other's free space (off: each branch
   takes a full-height band).
-- **Two sides from this many branches** — when to balance a one-sided map
-  automatically (0: never).
+- **Balance on both sides from this many branches** — from this count on, the
+  central node's branches are kept even on both sides (0: never).
 - **Extra arrows are links** — a node with several incoming arrows keeps one
   as its branch (right-to-left first, then the one from a node on its left,
   then the oldest). The others, and arrows pointing back to the left, are links:
@@ -153,7 +154,7 @@ The layout (`src/layout.ts`), tree reading (`src/tree.ts`), link renaming
 把 Obsidian 画布当思维导图用：输入时 **Enter** 新建子节点、**Tab** 新建同级节点，
 自动连线、自动排版；选中节点按 **Enter** 编辑；节点旁边的 **+** 按钮手机上也能用；
 右侧工具栏一键「整理导图」；节点大小跟随文字；**⌘F** 搜索画布；图片节点一键复制；
-粘贴进画布的图片按画布名重命名。选中节点后方向键在节点间移动，**Alt+方向键**调整同级顺序；
+粘贴进画布的图片按画布名重命名。选中节点后**Shift+方向键**在节点间移动，**Alt+方向键**调整同级顺序；
 分支可以折叠 / 展开；新节点沿用分支颜色；导图可以复制为 Markdown 列表，列表也可以粘贴成导图。
 
 ## Credits and license

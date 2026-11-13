@@ -1,4 +1,4 @@
-import { ItemView, KeymapEventHandler, Notice, Platform, Plugin, TAbstractFile, TFile, debounce, normalizePath, setIcon, setTooltip } from "obsidian";
+import { ItemView, KeymapContext, KeymapEventHandler, Notice, Platform, Plugin, TAbstractFile, TFile, debounce, normalizePath, setIcon, setTooltip } from "obsidian";
 import { Prec } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { around } from "monkey-around";
@@ -38,6 +38,9 @@ type Action = "child" | "sibling";
 interface Size { width: number; height: number }
 
 const ARROWS = new Set<string>(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+
+/** A key registered in a Scope, as Obsidian keeps it (internal). */
+interface ScopeKey { key: string | null; modifiers: string | null; func(evt: KeyboardEvent, ctx: KeymapContext): unknown }
 
 export default class CanvasArbor extends Plugin {
 	settings: Settings = { ...DEFAULT_SETTINGS, folds: {} };
@@ -207,7 +210,7 @@ export default class CanvasArbor extends Plugin {
 
 	onunload() {
 		this.restoreMenu?.();
-		for (const [view, handler] of this.findKeys) view.scope?.unregister(handler);
+		for (const [view, handlers] of this.findKeys) for (const handler of handlers) view.scope?.unregister(handler);
 		for (const search of this.searches.values()) search.close(false);
 		for (const timer of this.fitTimers.values()) window.clearTimeout(timer);
 		this.fitTimers.clear();
@@ -287,33 +290,54 @@ export default class CanvasArbor extends Plugin {
 			this.openSearch(view);
 			return;
 		}
-		const back = isShiftTab(evt);
-		// Arrows move between nodes, Alt+arrow moves the node among its siblings.
-		const arrow = this.settings.arrowKeys && ARROWS.has(evt.key) && !evt.ctrlKey && !evt.metaKey && !evt.shiftKey;
-		if (!back && !arrow && (evt.ctrlKey || evt.metaKey || evt.altKey || evt.shiftKey)) return;
-		// Tab adds a child; Shift+Tab goes back to the parent; Enter opens the selected node for editing (siblings: Enter while typing, or the + below).
-		const action: Action | "edit" | "parent" | "go" | "move" | null = back ? "parent" : arrow ? (evt.altKey ? "move" : "go") : evt.key === "Tab" ? "child" : evt.key === "Enter" ? "edit" : null;
-		if (!action) return;
-
 		const canvas = this.activeCanvas();
 		if (!canvas) return;
-		const target = evt.target as HTMLElement | null;
-		const doc = canvas.wrapperEl.ownerDocument;
-		const onCanvas = !target || target === doc.body || canvas.wrapperEl.contains(target);
-		if (!onCanvas || target?.closest("input, textarea, [contenteditable='true']")) return;
-		if (doc.querySelector(".modal-container, .suggestion-container, .menu")) return;
+		// Shift+arrow normally arrives through the canvas view's own keys (see claimKeys); Alt+arrow comes here.
+		if (ARROWS.has(evt.key)) {
+			if (this.onArrow(evt, canvas)) {
+				evt.preventDefault();
+				evt.stopPropagation();
+			}
+			return;
+		}
+		const back = isShiftTab(evt);
+		if (!back && (evt.ctrlKey || evt.metaKey || evt.altKey || evt.shiftKey)) return;
+		// Tab adds a child; Shift+Tab goes back to the parent; Enter opens the selected node for editing (siblings: Enter while typing, or the + below).
+		const action: Action | "edit" | "parent" | null = back ? "parent" : evt.key === "Tab" ? "child" : evt.key === "Enter" ? "edit" : null;
+		if (!action || !this.keyIsForCanvas(evt, canvas)) return;
 
 		const node = this.singleSelected(canvas);
 		if (!node || node.isEditing) return;
-		// A card that is not part of a map: arrows stay with Canvas.
-		if (arrow && !parentOf(node) && !outgoing(node).length) return;
 		evt.preventDefault();
 		evt.stopPropagation();
 		if (action === "edit") this.edit(node);
 		else if (action === "parent") this.selectParent(node);
-		else if (action === "go") this.go(node, evt.key as ArrowKey);
-		else if (action === "move") this.reorderByKey(node, evt.key as ArrowKey);
 		else this.add(node, action);
+	}
+
+	/** A key pressed on the canvas itself: not in a text field, a menu or a dialog. */
+	private keyIsForCanvas(evt: KeyboardEvent, canvas: Canvas): boolean {
+		const target = evt.target as HTMLElement | null;
+		const doc = canvas.wrapperEl.ownerDocument;
+		const onCanvas = !target || target === doc.body || canvas.wrapperEl.contains(target);
+		if (!onCanvas || target?.closest("input, textarea, [contenteditable='true']")) return false;
+		return !doc.querySelector(".modal-container, .suggestion-container, .menu");
+	}
+
+	/**
+	 * Shift+arrow on the selected node of a map moves to a neighbour, Alt+arrow trades places with a
+	 * sibling. False when the key is not ours (a card outside any map, a text field…), so Canvas keeps it.
+	 */
+	private onArrow(evt: KeyboardEvent, canvas: Canvas): boolean {
+		// Shift moves between nodes, Alt reorders; plain arrows stay with Canvas, which nudges the card.
+		if (!this.settings.arrowKeys || !ARROWS.has(evt.key) || evt.ctrlKey || evt.metaKey || evt.shiftKey === evt.altKey) return false;
+		if (evt.isComposing || !this.keyIsForCanvas(evt, canvas)) return false;
+		const node = this.singleSelected(canvas);
+		if (!node || node.isEditing) return false;
+		if (!parentOf(node) && !outgoing(node).length) return false;
+		if (evt.altKey) this.reorderByKey(node, evt.key as ArrowKey);
+		else this.go(node, evt.key as ArrowKey);
+		return true;
 	}
 
 	/**
@@ -844,9 +868,8 @@ export default class CanvasArbor extends Plugin {
 		if (parent && this.settings.autoLayout) {
 			const root = rootOf(parent);
 			const tree = this.layout(root, { insert: { node, after: action === "sibling" ? from : null } });
-			// A one-sided map that just reached the threshold spreads over both sides, once.
-			const n = this.settings.balanceFrom;
-			if (parent === root && n > 0 && (tree.get(root) ?? []).length === n && structureOf(root, tree) === "right") this.balance(root, tree);
+			// A new branch of the central node: from the threshold on, the map is kept even on both sides.
+			if (parent === root && this.balances(root, tree)) this.balance(root, tree);
 		} else {
 			this.placeFreely(node, from, action, dir);
 		}
@@ -986,10 +1009,22 @@ export default class CanvasArbor extends Plugin {
 		return span(shapeOf(k, kidsOf(k), kidsOf, this.sizer(down), this.shapeOptions(down), new Map()));
 	}
 
-	/** Spread the root branches over both sides, keeping their clockwise order and evening out the two heights. */
-	balance(root: CanvasNode, tree = buildTree(root)) {
+	/** Whether a map is one this plugin keeps balanced: enough central branches, and not a downward map. */
+	private balances(root: CanvasNode, tree: Tree): boolean {
+		const n = this.settings.balanceFrom;
+		return n > 0 && (tree.get(root) ?? []).length >= n && structureOf(root, tree) !== "down";
+	}
+
+	/**
+	 * Spread the root branches over both sides, keeping their clockwise order and evening out the two
+	 * heights. When two splits are as even, the right side gets the extra branch.
+	 */
+	balance(root: CanvasNode, tree = buildTree(root), route = true) {
 		const order = clockwise(root, tree.get(root) ?? []);
-		if (order.length < 2) return;
+		if (order.length < 2) {
+			this.layout(root, { tree, route });
+			return;
+		}
 		const spans = order.map((k) => this.branchSpan(k, tree, false));
 		const total = spans.reduce((a, b) => a + b, 0);
 		let best = 1;
@@ -998,13 +1033,14 @@ export default class CanvasArbor extends Plugin {
 		for (let k = 1; k < order.length; k++) {
 			acc += spans[k - 1];
 			const diff = Math.abs(acc - (total - acc));
-			if (diff < bestDiff) {
-				bestDiff = diff;
+			if (diff <= bestDiff + 0.5) {
+				bestDiff = Math.min(diff, bestDiff);
 				best = k;
 			}
 		}
 		this.layout(root, {
 			tree,
+			route,
 			groups: [
 				{ dir: "right", kids: order.slice(0, best) },
 				{ dir: "left", kids: order.slice(best).reverse() },
@@ -1108,7 +1144,8 @@ export default class CanvasArbor extends Plugin {
 			const tree = buildTree(root);
 			if (this.settings.autoSize) for (const n of tree.keys()) this.fit(n);
 			// Links are routed once, below, when every tree is in its final place.
-			this.layout(root, { route: false });
+			if (this.balances(root, tree)) this.balance(root, tree, false);
+			else this.layout(root, { route: false });
 			trees.push([...tree.keys()]);
 		}
 
@@ -1280,30 +1317,50 @@ export default class CanvasArbor extends Plugin {
 
 	// ---------- Tidy button in the canvas controls (right-hand toolbar) ----------
 
-	private findKeys = new Map<CanvasView, KeymapEventHandler>();
+	private findKeys = new Map<CanvasView, KeymapEventHandler[]>();
+
+	/**
+	 * Keys Obsidian hands out before any plugin listener sees them, claimed in the canvas view's own
+	 * scope, which is asked first. Mod+F belongs to "Search current file". Shift+arrow is Canvas's
+	 * own (a bigger nudge of the selection): a scope gives a key to its first handler only, so ours
+	 * go in front and pass the key on to the native one when it is not for a mind map node.
+	 */
+	private claimKeys(view: CanvasView): KeymapEventHandler[] {
+		const scope = view.scope;
+		if (!scope) return [];
+		const handlers = [
+			scope.register(["Mod"], "f", () => {
+				this.openSearch(view);
+				return false;
+			}),
+		];
+		const keys = (scope as unknown as { keys?: ScopeKey[] }).keys;
+		if (!Array.isArray(keys)) return handlers;
+		for (const key of ARROWS) {
+			const native = keys.find((k) => k.key === key && k.modifiers === "Shift");
+			const handler = scope.register(["Shift"], key, (evt, ctx) => {
+				if (view.canvas && this.onArrow(evt, view.canvas)) return false;
+				return native?.func(evt, ctx);
+			});
+			const i = keys.indexOf(handler as unknown as ScopeKey);
+			if (i > 0) keys.unshift(...keys.splice(i, 1));
+			handlers.push(handler);
+		}
+		return handlers;
+	}
 
 	private addTidyButtons() {
 		// Forget canvases that have been closed, so their views (and everything they hold) can be freed.
 		const views = this.canvasViews();
 		const open = new Set(views);
-		for (const [view, handler] of this.findKeys) {
+		for (const [view, handlers] of this.findKeys) {
 			if (open.has(view)) continue;
-			view.scope?.unregister(handler);
+			for (const handler of handlers) view.scope?.unregister(handler);
 			this.findKeys.delete(view);
 		}
 		for (const [view, search] of this.searches) if (!open.has(view)) search.close(false);
 		for (const view of views) {
-			// Mod+F belongs to "Search current file", whose hotkey fires before any plugin listener.
-			// The canvas view's own scope is consulted first, so claim the key there.
-			if (view.scope && !this.findKeys.has(view)) {
-				this.findKeys.set(
-					view,
-					view.scope.register(["Mod"], "f", () => {
-						this.openSearch(view);
-						return false;
-					}),
-				);
-			}
+			if (view.scope && !this.findKeys.has(view)) this.findKeys.set(view, this.claimKeys(view));
 			const controls = view.containerEl.querySelector(".canvas-controls");
 			if (!view.canvas || !controls || controls.querySelector(".arbor-tidy")) continue;
 			const group = createDiv({ cls: "canvas-control-group mod-raised arbor-tidy" });
